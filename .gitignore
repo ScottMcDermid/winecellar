@@ -1,0 +1,8 @@
+# Per-game wine prefixes and install state are machine-specific and large;
+# keep the directory but never track its contents.
+/games/*
+!/games/.gitkeep
+
+# Common cruft
+*.log
+.DS_Store
