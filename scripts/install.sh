@@ -60,11 +60,32 @@ else
   elif [ "${#CANDIDATES[@]}" -gt 1 ]; then
     echo
     echo "Multiple new executables appeared for '$GAME_NAME':"
-    printf '  %s\n' "${CANDIDATES[@]}"
     echo
-    echo "Re-run install naming the one to launch, e.g.:"
-    echo "  make install $GAME_NAME $EXE_PATH '${CANDIDATES[0]}'"
-    exit 1
+    for i in "${!CANDIDATES[@]}"; do
+      printf '  %d) %s\n' "$((i + 1))" "${CANDIDATES[$i]}"
+    done
+    echo
+
+    # Open a fd on the controlling terminal rather than just testing
+    # permission bits on /dev/tty; there may be no controlling terminal at
+    # all (e.g. running under certain non-interactive harnesses), in which
+    # case the open itself fails.
+    if exec 3</dev/tty 2>/dev/null; then
+      CHOICE=""
+      while true; do
+        read -r -u 3 -p "Select the one to launch [1-${#CANDIDATES[@]}]: " CHOICE
+        if [[ "$CHOICE" =~ ^[0-9]+$ ]] && [ "$CHOICE" -ge 1 ] && [ "$CHOICE" -le "${#CANDIDATES[@]}" ]; then
+          LAUNCH_EXE="${CANDIDATES[$((CHOICE - 1))]}"
+          break
+        fi
+        echo "error: enter a number between 1 and ${#CANDIDATES[@]}." >&2
+      done
+      exec 3<&-
+    else
+      echo "Not running in an interactive terminal; re-run install naming the one to launch, e.g.:"
+      echo "  make install $GAME_NAME $EXE_PATH '${CANDIDATES[0]}'"
+      exit 1
+    fi
   else
     echo "No new executable detected inside the prefix;"
     echo "treating '$EXE_ABS' itself as the game to launch."

@@ -52,7 +52,20 @@ make run stardew
 ```
 
 If an installer drops more than one new `.exe` into the prefix, `install`
-lists the candidates and asks you to pick one explicitly:
+lists the candidates as a numbered menu and prompts you to pick one:
+
+```
+Multiple new executables appeared for 'stardew':
+
+  1) games/stardew/prefix/drive_c/Stardew Valley/Stardew Valley.exe
+  2) games/stardew/prefix/drive_c/Stardew Valley/unins000.exe
+
+Select the one to launch [1-2]:
+```
+
+If `install` isn't running in an interactive terminal (no TTY attached), it
+falls back to printing the candidates and asking you to re-run it naming the
+one to launch explicitly:
 
 ```sh
 make install stardew ~/Downloads/StardewValleySetup.exe 'games/stardew/prefix/drive_c/Stardew Valley/Stardew Valley.exe'
