@@ -42,24 +42,7 @@ endif
 endif
 
 help:
-	@echo "Usage:"
-	@echo "  make init <game_name>                     create a wine prefix for <game_name>"
-	@echo "  make install <game_name> <exe> [launch]    run an installer/exe inside the prefix"
-	@echo "  make run <game_name> [exe]                 launch the recorded game executable, or [exe] inside its prefix (alias: launch)"
-	@echo "  make config <game_name> [key] [value]      view or set an option in config.json"
-	@echo "  make list                                  list known games"
-	@echo "  make clean <game_name>                     delete one game's directory, incl. prefix (asks to confirm)"
-	@echo "  make clean                                 delete ALL games' directories (asks to confirm)"
-	@echo
-	@echo "If a path contains spaces, use variables instead of positional args:"
-	@echo "  make install GAME=<game_name> EXE='/path/with spaces/setup.exe' [LAUNCH='...']"
-	@echo "  make run GAME=<game_name> EXE='/path/with spaces/game.exe'"
-	@echo
-	@echo "Env:"
-	@echo "  WINEARCH=win32|win64   arch used by 'make init' (default: win64)"
-	@echo "  GAMESCOPE_ARGS='...'   flags passed to gamescope for 'make run'"
-	@echo "  NO_GAMESCOPE=1         skip gamescope and launch wine directly"
-	@echo "  GAMESCOPE_FORCE_GRAB_CURSOR=0   disable the default --force-grab-cursor gamescope flag"
+	@scripts/help.sh
 
 init:
 	@scripts/init.sh $(if $(GAME),$(call qv,$(GAME)),$(QARGS))
@@ -77,11 +60,7 @@ config:
 	@scripts/config.sh $(if $(GAME),$(call qv,$(GAME)) $(if $(KEY),$(call qv,$(KEY)) $(if $(VALUE),$(call qv,$(VALUE)))),$(QARGS))
 
 list:
-	@if [ -d games ] && [ -n "$$(ls -A games 2>/dev/null | grep -v '^\.gitkeep$$')" ]; then \
-		find games -mindepth 1 -maxdepth 1 -type d -printf '%f\n'; \
-	else \
-		echo "No games yet. Run 'make init <game_name>' first."; \
-	fi
+	@scripts/list.sh
 
 clean:
 	@scripts/clean.sh $(if $(GAME),$(call qv,$(GAME)),$(QARGS))

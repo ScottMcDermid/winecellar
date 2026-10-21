@@ -17,9 +17,14 @@ require_jq
 
 CONFIG_FILE="$(config_file "$GAME_NAME")"
 
+JQ_COLOR_FLAG=()
+if [ -n "$C_RESET" ]; then
+  JQ_COLOR_FLAG=(-C)
+fi
+
 if [ -z "$KEY" ]; then
   if [ -f "$CONFIG_FILE" ]; then
-    jq '.' "$CONFIG_FILE"
+    jq "${JQ_COLOR_FLAG[@]}" '.' "$CONFIG_FILE"
   else
     echo '{}'
   fi
@@ -28,13 +33,14 @@ fi
 
 if [ "$#" -ge 3 ]; then
   config_set "$GAME_NAME" "$KEY" "$VALUE"
-  echo "Set '$KEY' = '$VALUE' for '$GAME_NAME'."
+  log_success "Set $(bold "$KEY") = $(bold "$VALUE") for $(bold "$GAME_NAME")."
   exit 0
 fi
 
 VALUE="$(config_get "$GAME_NAME" "$KEY")"
 if [ -z "$VALUE" ]; then
-  echo "(not set)"
+  dim "(not set)"
+  echo
 else
   echo "$VALUE"
 fi
