@@ -182,7 +182,7 @@ else
       exec 3<&-
     else
       log_info "Not running in an interactive terminal; re-run install naming the one to launch, e.g.:"
-      echo "    make install $GAME_NAME $EXE_PATH '${CANDIDATES[0]}'"
+      echo "    make install GAME=$GAME_NAME EXE='$EXE_PATH' LAUNCH='${CANDIDATES[0]}'"
       exit 1
     fi
   else

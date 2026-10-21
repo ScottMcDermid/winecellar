@@ -76,10 +76,11 @@ Select the one to launch [1-2]:
 
 If `install` isn't running in an interactive terminal (no TTY attached), it
 falls back to printing the candidates and asking you to re-run it naming the
-one to launch explicitly:
+one to launch explicitly. The positional form only reconstructs two logical
+args (`game_name`, `exe_path`), so a launch override needs the variable form:
 
 ```sh
-make install stardew ~/Downloads/StardewValleySetup.exe 'games/stardew/prefix/drive_c/Stardew Valley/Stardew Valley.exe'
+make install GAME=stardew EXE=~/Downloads/StardewValleySetup.exe LAUNCH='games/stardew/prefix/drive_c/Stardew Valley/Stardew Valley.exe'
 ```
 
 If `install` detects no new executables at all (common for portable, no-installer
@@ -225,16 +226,30 @@ GAMESCOPE_FORCE_GRAB_CURSOR=0 make run stardew
 
 ### Paths with spaces
 
-Positional arguments are split on whitespace by Make itself, so a path like
-`/home/me/My Downloads/setup.exe` can't be passed positionally. Use the
-variable form instead, which keeps the value intact:
+`make run`, `make launch`, `make tool`, and `make install` each reconstruct
+their own exe-path argument from everything after the fixed, non-spaced
+words that come before it, so passing a spaced path positionally works fine
+for those:
 
 ```sh
-make install GAME=oblivion EXE='/home/me/My Downloads/setup.exe'
+make run oblivion '/home/me/My Downloads/tool.exe'
+make install oblivion '/home/me/My Downloads/setup.exe'
+make tool oblivion wrye-bash '/home/me/My Downloads/Wrye Bash.exe'
+```
+
+That reconstruction only covers one trailing path, though — `make config`
+(`key`/`value`) and `install`'s optional launch-override 3rd arg can't tell
+where one argument ends and the next begins once spaces are involved, so
+those need the variable form instead, which keeps each value intact
+regardless of position:
+
+```sh
+make install GAME=oblivion EXE='/home/me/My Downloads/setup.exe' LAUNCH='/home/me/My Downloads/Game.exe'
 make init GAME=oblivion
 make run GAME=oblivion
 make run GAME=oblivion EXE='/home/me/My Downloads/tool.exe'
 make tool GAME=oblivion TOOL=wrye-bash EXE='/home/me/My Downloads/Wrye Bash.exe'
+make config GAME=oblivion KEY=gamescope_args VALUE='-W 1920 -H 1080 -f'
 ```
 
 Parentheses, `&`, and other shell-special characters in a path are fine

@@ -18,7 +18,7 @@ echo "$(bold "game-framework") $(dim "— run Windows games on Linux, one isolat
 echo
 echo "$(bold "Usage")"
 cmd "make init <game_name>" "create a wine prefix for <game_name>"
-cmd "make install <game_name> <exe> [launch]" "run an installer/exe inside the prefix"
+cmd "make install <game_name> <exe>" "run an installer/exe inside the prefix"
 cmd "make run <game_name> [exe]" "launch the recorded executable (gamescope on), or [exe] (gamescope off) (alias: launch)"
 cmd "make tool <game_name> [name] [exe]" "record/launch an auxiliary exe in the prefix, e.g. a mod manager (gamescope off by default)"
 cmd "make config <game_name> [key] [value]" "view or set an option in config.json"
@@ -27,7 +27,8 @@ cmd "make clean <game_name>" "delete one game's directory, incl. prefix (asks to
 cmd "make clean" "delete ALL games' directories (asks to confirm)"
 echo
 echo "$(bold "Paths with spaces")"
-echo "  use variables instead of positional args:"
+echo "  the <exe>/<tool exe> path can have spaces positionally, but extra"
+echo "  optional args ([launch], config's [key] [value]) can't — use variables:"
 cmd "make install GAME=<game_name> EXE='/path/with spaces/setup.exe' [LAUNCH='...']" ""
 cmd "make run GAME=<game_name> EXE='/path/with spaces/game.exe'" ""
 cmd "make tool GAME=<game_name> TOOL=<name> EXE='/path/with spaces/tool.exe'" ""

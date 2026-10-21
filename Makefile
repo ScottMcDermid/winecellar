@@ -22,16 +22,23 @@ QARGS = $(foreach a,$(ARGS),'$(subst ','\'',$(a))')
 qv = '$(subst ','\'',$(1))'
 
 # `run`/`launch` only ever take two logical positional args (game_name, exe),
-# so unlike install/config they can safely treat everything after the first
-# word as a single reconstructed exe path, spaces and all. `tool` is the same
-# idea with one extra fixed word in front (game_name, tool_name, exe). Make
-# still parses each whitespace-separated chunk of that path as its own
+# so unlike config they can safely treat everything after the first word as
+# a single reconstructed exe path, spaces and all. `install` is the same
+# idea: a positional launch-override 3rd arg would be ambiguous once the exe
+# path itself can contain spaces, so it's dropped from the positional form
+# entirely — use LAUNCH= for that. `tool` keeps its 3rd arg, but only because
+# the word in between (tool_name) is never expected to contain spaces.
+# Make still parses each whitespace-separated chunk of that path as its own
 # "goal" though, so the phony no-op rule below has to re-escape the spaces
 # to match it as one target.
 ifneq ($(filter run launch,$(GOAL)),)
 RUN_GAME := $(firstword $(ARGS))
 RUN_EXE := $(wordlist 2,$(words $(ARGS)),$(ARGS))
 PHONY_GOALS := $(strip $(RUN_GAME) $(subst $(space),\ ,$(RUN_EXE)))
+else ifeq ($(GOAL),install)
+INSTALL_GAME := $(firstword $(ARGS))
+INSTALL_EXE := $(wordlist 2,$(words $(ARGS)),$(ARGS))
+PHONY_GOALS := $(strip $(INSTALL_GAME) $(subst $(space),\ ,$(INSTALL_EXE)))
 else ifeq ($(GOAL),tool)
 TOOL_GAME := $(firstword $(ARGS))
 TOOL_NAME := $(word 2,$(ARGS))
@@ -54,7 +61,7 @@ init:
 	@scripts/init.sh $(if $(GAME),$(call qv,$(GAME)),$(QARGS))
 
 install:
-	@scripts/install.sh $(if $(GAME),$(call qv,$(GAME)) $(call qv,$(EXE)) $(if $(LAUNCH),$(call qv,$(LAUNCH))),$(QARGS))
+	@scripts/install.sh $(if $(GAME),$(call qv,$(GAME)),$(call qv,$(INSTALL_GAME))) $(if $(EXE),$(call qv,$(EXE)),$(if $(INSTALL_EXE),$(call qv,$(INSTALL_EXE)))) $(if $(LAUNCH),$(call qv,$(LAUNCH)))
 
 run:
 	@scripts/run.sh $(if $(GAME),$(call qv,$(GAME)),$(call qv,$(RUN_GAME))) $(if $(EXE),$(call qv,$(EXE)),$(if $(RUN_EXE),$(call qv,$(RUN_EXE))))
