@@ -33,12 +33,86 @@ fi
 
 EXE_ABS="$(cd "$(dirname "$EXE_PATH")" && pwd)/$(basename "$EXE_PATH")"
 
+# What we'll actually hand to wine. Normally this is just EXE_ABS, but for a
+# .iso it becomes the installer exe found inside the extracted image.
+RUN_EXE="$EXE_ABS"
+ISO_TMPDIR=""
+
 # Snapshot "now" so we can spot executables that show up during install.
 MARKER="$(mktemp)"
-trap 'rm -f "$MARKER"' EXIT
+trap 'rm -f "$MARKER"; [ -n "$ISO_TMPDIR" ] && rm -rf "$ISO_TMPDIR"' EXIT
 
-log_step "Running $(bold "$EXE_ABS") in the $(bold "$GAME_NAME") prefix..."
-WINEPREFIX="$PREFIX_DIR" wine "$EXE_ABS"
+if [[ "${EXE_PATH,,}" == *.iso ]]; then
+  require_7z
+
+  ISO_TMPDIR="$(mktemp -d)"
+
+  log_step "Extracting $(bold "$EXE_ABS")..."
+  if ! 7z x -y -o"$ISO_TMPDIR" -- "$EXE_ABS" >/dev/null; then
+    die "failed to extract ISO: $EXE_ABS"
+  fi
+
+  # Prefer the conventional installer names (shallowest match first, in
+  # case several subfolders have one); fall back to every .exe in the
+  # image, skipping redistributable bundles, which are never the game's
+  # own installer.
+  mapfile -t ISO_CANDIDATES < <(
+    find "$ISO_TMPDIR" -iname 'setup.exe' | awk '{ print length, $0 }' | sort -n | cut -d' ' -f2-
+  )
+  if [ "${#ISO_CANDIDATES[@]}" -eq 0 ]; then
+    mapfile -t ISO_CANDIDATES < <(
+      find "$ISO_TMPDIR" -iname 'autorun.exe' | awk '{ print length, $0 }' | sort -n | cut -d' ' -f2-
+    )
+  fi
+  if [ "${#ISO_CANDIDATES[@]}" -eq 0 ]; then
+    mapfile -t ISO_CANDIDATES < <(
+      find "$ISO_TMPDIR" -iname '*.exe' -not -ipath '*redist*' | sort
+    )
+  fi
+
+  if [ "${#ISO_CANDIDATES[@]}" -eq 0 ]; then
+    die "no executable found inside ISO: $EXE_ABS"
+  elif [ "${#ISO_CANDIDATES[@]}" -eq 1 ]; then
+    RUN_EXE="${ISO_CANDIDATES[0]}"
+  else
+    echo
+    log_info "Multiple possible installers found inside $(bold "$EXE_ABS"):"
+    echo
+    for i in "${!ISO_CANDIDATES[@]}"; do
+      printf '    %s%2d)%s %s\n' "$C_CYAN" "$((i + 1))" "$C_RESET" "${ISO_CANDIDATES[$i]#"$ISO_TMPDIR"/}"
+    done
+    echo
+
+    if exec 3</dev/tty 2>/dev/null; then
+      CHOICE=""
+      while true; do
+        read -r -u 3 -p "$(printf '%sSelect the one to run [1-%d]:%s ' "$C_BOLD" "${#ISO_CANDIDATES[@]}" "$C_RESET")" CHOICE
+        if [[ "$CHOICE" =~ ^[0-9]+$ ]] && [ "$CHOICE" -ge 1 ] && [ "$CHOICE" -le "${#ISO_CANDIDATES[@]}" ]; then
+          RUN_EXE="${ISO_CANDIDATES[$((CHOICE - 1))]}"
+          break
+        fi
+        log_error "enter a number between 1 and ${#ISO_CANDIDATES[@]}."
+      done
+      exec 3<&-
+    else
+      log_info "Not running in an interactive terminal; extract the ISO yourself and re-run install naming the installer directly, e.g.:"
+      echo "    7z x '$EXE_ABS' -o/tmp/some-dir"
+      echo "    make install $GAME_NAME '/tmp/some-dir/<installer>.exe'"
+      exit 1
+    fi
+  fi
+
+  log_info "Using installer: $(dim "${RUN_EXE#"$ISO_TMPDIR"/}")"
+fi
+
+log_step "Running $(bold "$RUN_EXE") in the $(bold "$GAME_NAME") prefix..."
+if [ -n "$ISO_TMPDIR" ]; then
+  # Run from the installer's own directory, same as a real disc layout, so
+  # installers that expect sibling files (data1.cab, etc.) can find them.
+  (cd "$(dirname "$RUN_EXE")" && WINEPREFIX="$PREFIX_DIR" wine "$(basename "$RUN_EXE")")
+else
+  WINEPREFIX="$PREFIX_DIR" wine "$RUN_EXE"
+fi
 
 LAUNCH_EXE=""
 
@@ -85,9 +159,12 @@ else
       exit 1
     fi
   else
+    if [ -n "$ISO_TMPDIR" ]; then
+      die "installer ran but no new executable was detected in the prefix; the ISO's installer exe doesn't persist after extraction, so there's nothing stable to record. Check that the installer completed successfully and try again."
+    fi
     log_info "No new executable detected inside the prefix;"
-    echo "  treating $(bold "$EXE_ABS") itself as the game to launch."
-    LAUNCH_EXE="$EXE_ABS"
+    echo "  treating $(bold "$RUN_EXE") itself as the game to launch."
+    LAUNCH_EXE="$RUN_EXE"
   fi
 fi
 

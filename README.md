@@ -7,6 +7,8 @@ isolated wine prefix.
 
 - `wine` on your `PATH`
 - `jq` on your `PATH` (used to read/write each game's `config.json`)
+- `7z` on your `PATH` (used by `make install` to extract `.iso` installers;
+  optional if you only ever install from `.exe`)
 - `gamescope` on your `PATH` (optional, but `make run` uses it by default to
   launch games in their own nested session)
 - GNU Make, bash
@@ -82,6 +84,36 @@ make install stardew ~/Downloads/StardewValleySetup.exe 'games/stardew/prefix/dr
 
 If `install` detects no new executables at all (common for portable, no-installer
 games), it assumes the exe you passed in *is* the game and records that directly.
+
+### Installing from an `.iso`
+
+`make install` also accepts a disc image directly — handy for GOG/retail
+installers distributed as `.iso`:
+
+```sh
+make install skyrim ~/Downloads/Skyrim.iso
+```
+
+Passing a path ending in `.iso` extracts it to a temporary directory (via
+`7z`, so no mounting or root access is needed), looks for the installer
+inside (preferring `setup.exe`, then `autorun.exe`, skipping redistributable
+bundles like DirectX/VC++ installers), and runs that inside the prefix. Pick
+the one to run yourself if several plausible candidates turn up:
+
+```
+Multiple possible installers found inside /home/me/Downloads/Skyrim.iso:
+
+  1) Game/setup.exe
+  2) Game/Data/setup.exe
+
+Select the one to run [1-2]:
+```
+
+Everything else — new-exe detection, the `launch` override argument, etc. —
+works the same as installing from a plain `.exe`. The extracted copy is
+deleted once `install` finishes; only what the installer wrote into
+`games/<game_name>/prefix/` sticks around. Requires `7z` (p7zip) on your
+`PATH`.
 
 ### Mod managers & other auxiliary tools (`make tool`)
 

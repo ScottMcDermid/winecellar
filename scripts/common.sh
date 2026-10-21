@@ -47,6 +47,12 @@ require_jq() {
   fi
 }
 
+require_7z() {
+  if ! command -v 7z >/dev/null 2>&1; then
+    die "'7z' is not installed or not on PATH (needed to extract .iso installers; try installing p7zip)."
+  fi
+}
+
 require_game_name() {
   if [ -z "${1:-}" ]; then
     die "missing <game_name> argument."
