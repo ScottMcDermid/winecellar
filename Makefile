@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help init install run list clean
+.PHONY: help init install run config list clean
 
 # Allow positional args after the subcommand, e.g.:
 #   make init mygame
@@ -18,7 +18,7 @@ QARGS = $(foreach a,$(ARGS),'$(subst ','\'',$(a))')
 #   make install GAME=oblivion EXE='/path/with spaces/setup.exe'
 qv = '$(subst ','\'',$(1))'
 
-ifneq ($(filter init install run clean,$(GOAL)),)
+ifneq ($(filter init install run config clean,$(GOAL)),)
 $(eval $(ARGS):;@:)
 endif
 
@@ -27,6 +27,7 @@ help:
 	@echo "  make init <game_name>                     create a wine prefix for <game_name>"
 	@echo "  make install <game_name> <exe> [launch]    run an installer/exe inside the prefix"
 	@echo "  make run <game_name>                       launch the recorded game executable"
+	@echo "  make config <game_name> [key] [value]      view or set an option in config.json"
 	@echo "  make list                                  list known games"
 	@echo "  make clean <game_name>                     delete one game's directory, incl. prefix (asks to confirm)"
 	@echo "  make clean                                 delete ALL games' directories (asks to confirm)"
@@ -47,6 +48,9 @@ install:
 
 run:
 	@scripts/run.sh $(if $(GAME),$(call qv,$(GAME)),$(QARGS))
+
+config:
+	@scripts/config.sh $(if $(GAME),$(call qv,$(GAME)) $(if $(KEY),$(call qv,$(KEY)) $(if $(VALUE),$(call qv,$(VALUE)))),$(QARGS))
 
 list:
 	@if [ -d games ] && [ -n "$$(ls -A games 2>/dev/null | grep -v '^\.gitkeep$$')" ]; then \

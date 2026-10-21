@@ -9,23 +9,22 @@ source "$SCRIPT_DIR/common.sh"
 GAME_NAME="${1:-}"
 require_game_name "$GAME_NAME"
 require_wine
+require_jq
 
 PREFIX_DIR="$(prefix_dir "$GAME_NAME")"
-LAUNCH_FILE="$(launch_file "$GAME_NAME")"
-GAMESCOPE_CONF="$(gamescope_conf "$GAME_NAME")"
 
 if [ ! -d "$PREFIX_DIR" ]; then
   echo "error: no prefix found for '$GAME_NAME'. Run: make init $GAME_NAME" >&2
   exit 1
 fi
 
-if [ ! -f "$LAUNCH_FILE" ]; then
+LAUNCH_EXE="$(config_get "$GAME_NAME" launch)"
+
+if [ -z "$LAUNCH_EXE" ]; then
   echo "error: no launch target recorded for '$GAME_NAME'." >&2
   echo "Run: make install $GAME_NAME <path-to-exe>" >&2
   exit 1
 fi
-
-LAUNCH_EXE="$(cat "$LAUNCH_FILE")"
 
 if [ ! -f "$LAUNCH_EXE" ]; then
   echo "error: recorded launch executable is missing: $LAUNCH_EXE" >&2
@@ -33,12 +32,9 @@ if [ ! -f "$LAUNCH_EXE" ]; then
 fi
 
 # gamescope options: $GAMESCOPE_ARGS wins if set, otherwise fall back to a
-# per-game default stored in games/<game_name>/gamescope.conf (one line of
-# flags, e.g. "-W 1920 -H 1080 -f").
-GAMESCOPE_DEFAULTS=""
-if [ -f "$GAMESCOPE_CONF" ]; then
-  GAMESCOPE_DEFAULTS="$(cat "$GAMESCOPE_CONF")"
-fi
+# per-game default stored in games/<game_name>/config.json under the
+# "gamescope_args" key (one line of flags, e.g. "-W 1920 -H 1080 -f").
+GAMESCOPE_DEFAULTS="$(config_get "$GAME_NAME" gamescope_args)"
 read -r -a GAMESCOPE_ARGS_ARR <<< "${GAMESCOPE_ARGS:-$GAMESCOPE_DEFAULTS}"
 
 export WINEPREFIX="$PREFIX_DIR"

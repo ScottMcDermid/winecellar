@@ -12,6 +12,7 @@ LAUNCH_OVERRIDE="${3:-}"
 
 require_game_name "$GAME_NAME"
 require_wine
+require_jq
 
 if [ -z "$EXE_PATH" ]; then
   echo "error: missing <path-to-exe> argument." >&2
@@ -25,7 +26,6 @@ if [ ! -f "$EXE_PATH" ]; then
 fi
 
 PREFIX_DIR="$(prefix_dir "$GAME_NAME")"
-LAUNCH_FILE="$(launch_file "$GAME_NAME")"
 
 if [ ! -d "$PREFIX_DIR" ]; then
   echo "No prefix found for '$GAME_NAME' yet, creating one first..."
@@ -72,7 +72,7 @@ else
   fi
 fi
 
-echo "$LAUNCH_EXE" > "$LAUNCH_FILE"
+config_set "$GAME_NAME" launch "$LAUNCH_EXE"
 echo
 echo "Install complete for '$GAME_NAME'."
 echo "Launch target saved: $LAUNCH_EXE"

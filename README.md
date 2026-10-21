@@ -6,6 +6,7 @@ isolated wine prefix.
 ## Requirements
 
 - `wine` on your `PATH`
+- `jq` on your `PATH` (used to read/write each game's `config.json`)
 - `gamescope` on your `PATH` (optional, but `make run` uses it by default to
   launch games in their own nested session)
 - GNU Make, bash
@@ -18,9 +19,12 @@ since prefixes are large and machine-specific):
 ```
 games/<game_name>/
 ├── prefix/            # WINEPREFIX for this game only
-├── launch.txt         # absolute path of the exe `make run` should launch
-└── gamescope.conf     # optional, default gamescope flags for this game
+└── config.json        # generated, per-game options (e.g. launch exe, gamescope args)
 ```
+
+`config.json` is a small, flat JSON object. `make install` and `make config`
+write to it; `make run` reads from it. You generally don't need to edit it by
+hand, but it's just JSON if you want to.
 
 ## Usage
 
@@ -57,6 +61,33 @@ make install stardew ~/Downloads/StardewValleySetup.exe 'games/stardew/prefix/dr
 If `install` detects no new executables at all (common for portable, no-installer
 games), it assumes the exe you passed in *is* the game and records that directly.
 
+### Configuring a game (`config.json`)
+
+Every option `make run` looks at is read from `games/<game_name>/config.json`,
+a small generated JSON file. View or change it with `make config`:
+
+```sh
+# print the whole config for a game
+make config stardew
+
+# print a single value
+make config stardew launch
+
+# set a value
+make config stardew gamescope_args '-W 1920 -H 1080 -f'
+```
+
+Supported keys today:
+
+| key              | set by           | meaning                                        |
+| ---------------- | ---------------- | ----------------------------------------------- |
+| `launch`         | `make install`   | absolute path of the exe `make run` launches    |
+| `gamescope_args` | `make config`    | default gamescope flags for this game           |
+
+More options can be added the same way as the framework grows; `config.sh`
+and the `config_get`/`config_set` helpers in `scripts/common.sh` don't care
+which key you use.
+
 ### gamescope
 
 `make run` launches the game inside [gamescope](https://github.com/ValveSoftware/gamescope)
@@ -69,16 +100,16 @@ desktop). Configure it per run or per game:
 GAMESCOPE_ARGS='-W 1920 -H 1080 -f' make run stardew
 
 # persistent default for this game
-echo '-W 1920 -H 1080 -f' > games/stardew/gamescope.conf
+make config stardew gamescope_args '-W 1920 -H 1080 -f'
 make run stardew
 
 # skip gamescope entirely for this run
 NO_GAMESCOPE=1 make run stardew
 ```
 
-`GAMESCOPE_ARGS` always wins over `gamescope.conf` when both are set. If
-`gamescope` isn't installed, `make run` warns and falls back to launching
-wine directly.
+`GAMESCOPE_ARGS` always wins over the `gamescope_args` config value when both
+are set. If `gamescope` isn't installed, `make run` warns and falls back to
+launching wine directly.
 
 ### Paths with spaces
 
@@ -101,5 +132,5 @@ either way — they're automatically quoted for you.
   `WINEARCH=win32 make init <game_name>`.
 - `make run` always launches wine from the recorded executable's own
   directory, so games that expect relative asset paths work correctly.
-- To change what `make run` launches, edit `games/<game_name>/launch.txt`
-  directly, or re-run `make install` with an explicit launch override.
+- To change what `make run` launches, run `make config <game_name> launch
+  <path-to-exe>`, or re-run `make install` with an explicit launch override.
