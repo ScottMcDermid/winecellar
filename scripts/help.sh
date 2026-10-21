@@ -41,6 +41,13 @@ echo "  every launch (run or tool):"
 cmd "make config <game_name> cd_image <path-to.iso-or-folder>" "disc image/folder to mount"
 cmd "make config <game_name> cd_drive <letter>" "drive letter to use (default: d)"
 echo
+echo "$(bold "Games incompatible with gamescope")"
+echo "  some games/wine+dgVoodoo combos crash under gamescope for reasons"
+echo "  outside this project's control; record a per-game default to always"
+echo "  launch them with gamescope disabled (still overridable per-run via"
+echo "  NO_GAMESCOPE=0):"
+cmd "make config <game_name> no_gamescope 1" "always skip gamescope for this game"
+echo
 echo "$(bold "Env")"
 flag "WINEARCH=win32|win64" "arch used by 'make init' (default: win64)"
 flag "GAMESCOPE_ARGS='...'" "flags passed to gamescope for 'make run'"

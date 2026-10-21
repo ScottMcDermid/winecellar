@@ -249,7 +249,13 @@ launch_exe() {
   export WINEPREFIX="$prefix"
   cd "$(dirname "$exe")"
 
-  if [ "${NO_GAMESCOPE:-$default_no_gamescope}" = "1" ]; then
+  # $NO_GAMESCOPE wins if set; otherwise a per-game "no_gamescope" default
+  # in config.json (for games that are simply incompatible with gamescope);
+  # otherwise the caller's own default (0 for the recorded launch target,
+  # 1 for a one-off exe override/tool).
+  local no_gamescope
+  no_gamescope="${NO_GAMESCOPE:-$(config_get "$game" no_gamescope "$default_no_gamescope")}"
+  if [ "$no_gamescope" = "1" ]; then
     log_step "Launching $label $(dim "(gamescope disabled)"): $exe"
     exec wine "$exe"
   fi
