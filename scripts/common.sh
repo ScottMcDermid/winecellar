@@ -88,3 +88,51 @@ config_set() {
   tmp="$(mktemp)"
   jq --arg k "$key" --arg v "$value" '.[$k] = $v' "$file" >"$tmp" && mv "$tmp" "$file"
 }
+
+# Launches an executable inside a game's wine prefix, wrapping it in
+# gamescope unless disabled. Shared by `run` (the recorded game/exe
+# override) and `tool` (auxiliary exes like mod managers), which only
+# differ in whether gamescope is on or off by default.
+#   game                  game name (used for WINEPREFIX + gamescope_args lookup)
+#   exe                   absolute path to the executable to run
+#   default_no_gamescope  gamescope default when $NO_GAMESCOPE isn't set ("0"=on, "1"=off)
+#   label                 human-readable description for log messages
+launch_exe() {
+  local game="$1" exe="$2" default_no_gamescope="$3" label="$4"
+  local prefix
+  prefix="$(prefix_dir "$game")"
+
+  # gamescope options: $GAMESCOPE_ARGS wins if set, otherwise fall back to a
+  # per-game default stored in games/<game_name>/config.json under the
+  # "gamescope_args" key (one line of flags, e.g. "-W 1920 -H 1080 -f").
+  local gamescope_defaults
+  gamescope_defaults="$(config_get "$game" gamescope_args)"
+  local -a gamescope_args_arr
+  read -r -a gamescope_args_arr <<< "${GAMESCOPE_ARGS:-$gamescope_defaults}"
+
+  # gamescope's default cursor handling flips between confined and free
+  # depending on whether the game currently hides its cursor, which guesses
+  # wrong for a lot of wine games (the cursor escapes the window, or mouse
+  # look stops tracking). --force-grab-cursor pins it to relative mode
+  # instead, so we always pass it unless explicitly disabled.
+  if [ "${GAMESCOPE_FORCE_GRAB_CURSOR:-1}" = "1" ]; then
+    gamescope_args_arr=(--force-grab-cursor "${gamescope_args_arr[@]}")
+  fi
+
+  export WINEPREFIX="$prefix"
+  cd "$(dirname "$exe")"
+
+  if [ "${NO_GAMESCOPE:-$default_no_gamescope}" = "1" ]; then
+    log_step "Launching $label $(dim "(gamescope disabled)"): $exe"
+    exec wine "$exe"
+  fi
+
+  if ! command -v gamescope >/dev/null 2>&1; then
+    log_warn "'gamescope' not found on PATH; launching without it."
+    log_step "Launching $label: $exe"
+    exec wine "$exe"
+  fi
+
+  log_step "Launching $label $(dim "in gamescope"): $exe"
+  exec gamescope "${gamescope_args_arr[@]}" -- wine "$exe"
+}

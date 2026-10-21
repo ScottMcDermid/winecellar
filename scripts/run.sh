@@ -38,34 +38,5 @@ else
   fi
 fi
 
-# gamescope options: $GAMESCOPE_ARGS wins if set, otherwise fall back to a
-# per-game default stored in games/<game_name>/config.json under the
-# "gamescope_args" key (one line of flags, e.g. "-W 1920 -H 1080 -f").
-GAMESCOPE_DEFAULTS="$(config_get "$GAME_NAME" gamescope_args)"
-read -r -a GAMESCOPE_ARGS_ARR <<< "${GAMESCOPE_ARGS:-$GAMESCOPE_DEFAULTS}"
-
-# gamescope's default cursor handling flips between confined and free
-# depending on whether the game currently hides its cursor, which guesses
-# wrong for a lot of wine games (the cursor escapes the window, or mouse
-# look stops tracking). --force-grab-cursor pins it to relative mode
-# instead, so we always pass it unless explicitly disabled.
-if [ "${GAMESCOPE_FORCE_GRAB_CURSOR:-1}" = "1" ]; then
-  GAMESCOPE_ARGS_ARR=(--force-grab-cursor "${GAMESCOPE_ARGS_ARR[@]}")
-fi
-
-export WINEPREFIX="$PREFIX_DIR"
-cd "$(dirname "$LAUNCH_EXE")"
-
-if [ "${NO_GAMESCOPE:-0}" = "1" ]; then
-  log_step "Launching $(bold "$GAME_NAME") $(dim "(gamescope disabled)"): $LAUNCH_EXE"
-  exec wine "$LAUNCH_EXE"
-fi
-
-if ! command -v gamescope >/dev/null 2>&1; then
-  log_warn "'gamescope' not found on PATH; launching without it."
-  log_step "Launching $(bold "$GAME_NAME"): $LAUNCH_EXE"
-  exec wine "$LAUNCH_EXE"
-fi
-
-log_step "Launching $(bold "$GAME_NAME") $(dim "in gamescope"): $LAUNCH_EXE"
-exec gamescope "${GAMESCOPE_ARGS_ARR[@]}" -- wine "$LAUNCH_EXE"
+# Games get gamescope on by default; override with NO_GAMESCOPE=1.
+launch_exe "$GAME_NAME" "$LAUNCH_EXE" 0 "$(bold "$GAME_NAME")"
