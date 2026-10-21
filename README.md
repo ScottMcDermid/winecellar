@@ -39,6 +39,10 @@ make install <game_name> <path-to-exe>
 # 3. Launch the game later
 make run <game_name>
 
+# 3b. Or launch a different executable inside that same prefix
+#     (doesn't change the recorded launch target)
+make run <game_name> <path-to-exe>
+
 # See what's been set up
 make list
 ```
@@ -134,6 +138,7 @@ variable form instead, which keeps the value intact:
 make install GAME=oblivion EXE='/home/me/My Downloads/setup.exe'
 make init GAME=oblivion
 make run GAME=oblivion
+make run GAME=oblivion EXE='/home/me/My Downloads/tool.exe'
 ```
 
 Parentheses, `&`, and other shell-special characters in a path are fine
@@ -147,3 +152,8 @@ either way — they're automatically quoted for you.
   directory, so games that expect relative asset paths work correctly.
 - To change what `make run` launches, run `make config <game_name> launch
   <path-to-exe>`, or re-run `make install` with an explicit launch override.
+- Need a one-off, e.g. a mod tool or benchmark that lives in the same
+  prefix? Pass its path as a second argument: `make run <game_name>
+  <path-to-exe>`. This launches from that executable's own directory and
+  respects the same gamescope settings, but doesn't touch the recorded
+  `launch` config value.

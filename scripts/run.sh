@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Launch the game previously recorded by `make install`, nested inside
-# gamescope.
+# gamescope. Optionally launch a different executable inside the same
+# prefix instead, without touching the recorded launch target.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
 GAME_NAME="${1:-}"
+EXE_OVERRIDE="${2:-}"
 require_game_name "$GAME_NAME"
 require_wine
 require_jq
@@ -18,17 +20,25 @@ if [ ! -d "$PREFIX_DIR" ]; then
   exit 1
 fi
 
-LAUNCH_EXE="$(config_get "$GAME_NAME" launch)"
+if [ -n "$EXE_OVERRIDE" ]; then
+  if [ ! -f "$EXE_OVERRIDE" ]; then
+    echo "error: executable not found: $EXE_OVERRIDE" >&2
+    exit 1
+  fi
+  LAUNCH_EXE="$(cd "$(dirname "$EXE_OVERRIDE")" && pwd)/$(basename "$EXE_OVERRIDE")"
+else
+  LAUNCH_EXE="$(config_get "$GAME_NAME" launch)"
 
-if [ -z "$LAUNCH_EXE" ]; then
-  echo "error: no launch target recorded for '$GAME_NAME'." >&2
-  echo "Run: make install $GAME_NAME <path-to-exe>" >&2
-  exit 1
-fi
+  if [ -z "$LAUNCH_EXE" ]; then
+    echo "error: no launch target recorded for '$GAME_NAME'." >&2
+    echo "Run: make install $GAME_NAME <path-to-exe>" >&2
+    exit 1
+  fi
 
-if [ ! -f "$LAUNCH_EXE" ]; then
-  echo "error: recorded launch executable is missing: $LAUNCH_EXE" >&2
-  exit 1
+  if [ ! -f "$LAUNCH_EXE" ]; then
+    echo "error: recorded launch executable is missing: $LAUNCH_EXE" >&2
+    exit 1
+  fi
 fi
 
 # gamescope options: $GAMESCOPE_ARGS wins if set, otherwise fall back to a
