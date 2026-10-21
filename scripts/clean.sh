@@ -10,10 +10,10 @@ GAME_NAME="${1:-}"
 
 confirm() {
   local reply=""
-  if { read -r -p "$1 [y/N] " reply </dev/tty; } 2>/dev/null; then
+  if { read -r -p "$1 (y/n) " reply </dev/tty; } 2>/dev/null; then
     :
   else
-    read -r -p "$1 [y/N] " reply || reply=""
+    read -r -p "$1 (y/n) " reply || reply=""
   fi
   case "$reply" in
     [yY]|[yY][eE][sS]) return 0 ;;
