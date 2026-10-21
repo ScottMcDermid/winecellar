@@ -139,6 +139,71 @@ config_set() {
   jq --arg k "$key" --arg v "$value" '.[$k] = $v' "$file" >"$tmp" && mv "$tmp" "$file"
 }
 
+# Some old CD-ROM games refuse to start (or refuse to go past the title
+# screen) unless a drive they can see is actually flagged as a CD-ROM, not
+# just a folder of files. Wine can't infer that from a plain dosdevices
+# symlink, so this mirrors what winecfg's Drives tab does by hand: symlink
+# the disc's contents into dosdevices/<letter>: and tell wine to report
+# that drive's type as "cdrom" via the same registry key winecfg writes
+# (HKEY_LOCAL_MACHINE\Software\Wine\Drives).
+#
+# Configured per-game via config.json:
+#   cd_image  path to a .iso, or to an already-extracted disc folder
+#   cd_drive  drive letter to mount it as (default: d)
+# e.g. make config <game_name> cd_image /path/to/game.iso
+#      make config <game_name> cd_drive d
+#
+# A .iso is extracted once into games/<game_name>/cdrom (via 7z) and
+# re-extracted only if the source file's size/mtime changes; an
+# already-extracted folder is symlinked as-is.
+mount_cdrom() {
+  local game="$1" prefix="$2"
+  local image
+  image="$(config_get "$game" cd_image)"
+  [ -z "$image" ] && return 0
+
+  if [ ! -e "$image" ]; then
+    log_warn "configured cd_image for '$game' not found, skipping: $image"
+    return 0
+  fi
+
+  local drive
+  drive="$(config_get "$game" cd_drive d)"
+  drive="${drive%:}"
+  drive="${drive,,}"
+
+  local source_dir
+  if [ -d "$image" ]; then
+    source_dir="$image"
+  else
+    require_7z
+
+    local cache_dir stamp_file stamp
+    cache_dir="$(game_dir "$game")/cdrom"
+    stamp_file="$(game_dir "$game")/.cdrom-source"
+    stamp="$image:$(stat -c '%s:%Y' "$image" 2>/dev/null)"
+
+    if [ ! -d "$cache_dir" ] || [ "$(cat "$stamp_file" 2>/dev/null)" != "$stamp" ]; then
+      log_step "Extracting CD image for $(bold "$game") $(dim "(cached under games/$game/cdrom)")..."
+      rm -rf "$cache_dir"
+      mkdir -p "$cache_dir"
+      if ! 7z x -y -o"$cache_dir" -- "$image" >/dev/null; then
+        rm -rf "$cache_dir"
+        die "failed to extract CD image: $image"
+      fi
+      echo "$stamp" >"$stamp_file"
+    fi
+    source_dir="$cache_dir"
+  fi
+
+  mkdir -p "$prefix/dosdevices"
+  ln -sfn "$source_dir" "$prefix/dosdevices/$drive:"
+
+  WINEPREFIX="$prefix" wine reg add 'HKLM\Software\Wine\Drives' /v "$drive:" /d cdrom /f >/dev/null 2>&1
+
+  log_step "Mounted CD image for $(bold "$game") at $(bold "${drive^^}:")"
+}
+
 # Launches an executable inside a game's wine prefix, wrapping it in
 # gamescope unless disabled. Shared by `run` (the recorded game/exe
 # override) and `tool` (auxiliary exes like mod managers), which only
@@ -151,6 +216,8 @@ launch_exe() {
   local game="$1" exe="$2" default_no_gamescope="$3" label="$4"
   local prefix
   prefix="$(prefix_dir "$game")"
+
+  mount_cdrom "$game" "$prefix"
 
   # gamescope options: $GAMESCOPE_ARGS wins if set, otherwise fall back to a
   # per-game default stored in games/<game_name>/config.json under the

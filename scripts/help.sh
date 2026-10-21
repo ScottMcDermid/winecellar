@@ -33,6 +33,14 @@ cmd "make install GAME=<game_name> EXE='/path/with spaces/setup.exe' [LAUNCH='..
 cmd "make run GAME=<game_name> EXE='/path/with spaces/game.exe'" ""
 cmd "make tool GAME=<game_name> TOOL=<name> EXE='/path/with spaces/tool.exe'" ""
 echo
+echo "$(bold "CD-ROM emulation")"
+echo "  some older games refuse to run (or ask you to insert the disc) unless"
+echo "  a drive is specifically flagged as a CD-ROM. Record a disc image or an"
+echo "  already-extracted disc folder once, and it's mounted automatically on"
+echo "  every launch (run or tool):"
+cmd "make config <game_name> cd_image <path-to.iso-or-folder>" "disc image/folder to mount"
+cmd "make config <game_name> cd_drive <letter>" "drive letter to use (default: d)"
+echo
 echo "$(bold "Env")"
 flag "WINEARCH=win32|win64" "arch used by 'make init' (default: win64)"
 flag "GAMESCOPE_ARGS='...'" "flags passed to gamescope for 'make run'"
