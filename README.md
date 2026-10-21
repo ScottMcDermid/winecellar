@@ -115,6 +115,14 @@ deleted once `install` finishes; only what the installer wrote into
 `games/<game_name>/prefix/` sticks around. Requires `7z` (p7zip) on your
 `PATH`.
 
+Some older discs (CD-ROM XA/Mode 2 titles, hybrid Mac/PC discs burned with
+tools like Toast, etc.) are dumped as a raw image with 2352-byte sectors
+instead of the plain 2048-byte layout most ISO tools expect, so they fail
+plain extraction even though the file is a perfectly valid `.iso`. `install`
+detects that case automatically and converts it before extracting — this
+step needs `python3` on your `PATH` (only when this fallback actually
+triggers; a standard `.iso` never needs it).
+
 ### Mod managers & other auxiliary tools (`make tool`)
 
 Some tools need to run *inside* the same wine prefix as the game — a mod

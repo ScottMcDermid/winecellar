@@ -53,6 +53,50 @@ require_7z() {
   fi
 }
 
+# Some CD images are distributed as raw dumps with 2352-byte sectors (common
+# for CD-ROM XA/Mode 2 discs — older multimedia titles, hybrid Mac/PC discs
+# burned with tools like Toast, etc.) instead of the plain 2048-byte-sector
+# layout most ISO tools (including 7z) expect, so straightforward extraction
+# fails even though the file ends in .iso. Detects that layout by looking
+# for the ISO9660 "CD001" signature repeating every 2352 bytes and, if
+# found, writes a standard-sector copy to $2 that 7z can read. Returns
+# non-zero (leaving $2 untouched) if the source doesn't look like a raw CD
+# image, so the caller can fall back to reporting the original error.
+convert_raw_cd_image() {
+  local src="$1" dst="$2"
+  python3 - "$src" "$dst" <<'PYEOF'
+import sys
+
+RAW = 2352  # sync + header (+ XA subheader) + 2048 user bytes + EDC/ECC
+
+src, dst = sys.argv[1], sys.argv[2]
+with open(src, "rb") as f:
+    head = f.read(200000)
+
+first = head.find(b"CD001")
+if first < 0:
+    sys.exit(1)
+second = head.find(b"CD001", first + 1)
+if second < 0 or second - first != RAW:
+    sys.exit(1)
+
+# "CD001" sits 1 byte into the Volume Descriptor's 2048-byte payload, and
+# the primary descriptor is always logical sector 16.
+hdr = first - 16 * RAW - 1
+if hdr < 0 or hdr > 64:
+    sys.exit(1)
+
+BATCH = 2000  # sectors per read, a few MB at a time
+with open(src, "rb") as fin, open(dst, "wb") as fout:
+    while True:
+        chunk = fin.read(RAW * BATCH)
+        if not chunk:
+            break
+        for i in range(0, len(chunk) - RAW + 1, RAW):
+            fout.write(chunk[i + hdr : i + hdr + 2048])
+PYEOF
+}
+
 require_game_name() {
   if [ -z "${1:-}" ]; then
     die "missing <game_name> argument."

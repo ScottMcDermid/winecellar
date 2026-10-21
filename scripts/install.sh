@@ -48,25 +48,52 @@ if [[ "${EXE_PATH,,}" == *.iso ]]; then
   ISO_TMPDIR="$(mktemp -d)"
 
   log_step "Extracting $(bold "$EXE_ABS")..."
-  if ! 7z x -y -o"$ISO_TMPDIR" -- "$EXE_ABS" >/dev/null; then
-    die "failed to extract ISO: $EXE_ABS"
+  if ! 7z x -y -o"$ISO_TMPDIR" -- "$EXE_ABS" >/dev/null 2>/dev/null; then
+    if ! command -v python3 >/dev/null 2>&1; then
+      die "failed to extract ISO: $EXE_ABS (if this is a raw/2352-byte-sector CD image, converting it needs python3, which isn't on PATH)"
+    fi
+
+    log_warn "standard extraction failed; checking for a raw (2352-byte sector) CD image..."
+    CONVERTED_ISO="$(mktemp --suffix=.iso)"
+    if ! convert_raw_cd_image "$EXE_ABS" "$CONVERTED_ISO"; then
+      rm -f "$CONVERTED_ISO"
+      die "failed to extract ISO: $EXE_ABS"
+    fi
+
+    rm -rf "$ISO_TMPDIR"
+    mkdir -p "$ISO_TMPDIR"
+    if ! 7z x -y -o"$ISO_TMPDIR" -- "$CONVERTED_ISO" >/dev/null; then
+      rm -f "$CONVERTED_ISO"
+      die "failed to extract ISO even after raw-sector conversion: $EXE_ABS"
+    fi
+    rm -f "$CONVERTED_ISO"
+    log_info "Detected a raw (2352-byte sector) CD image and converted it before extracting."
   fi
 
-  # Prefer the conventional installer names (shallowest match first, in
-  # case several subfolders have one); fall back to every .exe in the
-  # image, skipping redistributable bundles, which are never the game's
-  # own installer.
+  # Prefer the conventional installer names, preferring whichever sits
+  # shallowest in the image (so a handful of decoy copies bundled alongside
+  # it — Acrobat Reader, DirectX, an uninstaller stub, etc. — don't out-vote
+  # the real one); fall back to every .exe in the image, skipping
+  # redistributable bundles, which are never the game's own installer.
+  shallowest_paths() {
+    awk -F'\t' '
+      NR == 1 || $1 < min { min = $1 }
+      { depth[NR] = $1; path[NR] = $2 }
+      END { for (i = 1; i <= NR; i++) if (depth[i] == min) print path[i] }
+    '
+  }
+
   mapfile -t ISO_CANDIDATES < <(
-    find "$ISO_TMPDIR" -iname 'setup.exe' | awk '{ print length, $0 }' | sort -n | cut -d' ' -f2-
+    find "$ISO_TMPDIR" -iname 'setup.exe' -printf '%d\t%p\n' | shallowest_paths
   )
   if [ "${#ISO_CANDIDATES[@]}" -eq 0 ]; then
     mapfile -t ISO_CANDIDATES < <(
-      find "$ISO_TMPDIR" -iname 'autorun.exe' | awk '{ print length, $0 }' | sort -n | cut -d' ' -f2-
+      find "$ISO_TMPDIR" -iname 'autorun.exe' -printf '%d\t%p\n' | shallowest_paths
     )
   fi
   if [ "${#ISO_CANDIDATES[@]}" -eq 0 ]; then
     mapfile -t ISO_CANDIDATES < <(
-      find "$ISO_TMPDIR" -iname '*.exe' -not -ipath '*redist*' | sort
+      find "$ISO_TMPDIR" -iname '*.exe' -not -ipath '*redist*' -printf '%d\t%p\n' | shallowest_paths
     )
   fi
 
