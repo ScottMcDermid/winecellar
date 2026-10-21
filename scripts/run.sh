@@ -47,6 +47,15 @@ fi
 GAMESCOPE_DEFAULTS="$(config_get "$GAME_NAME" gamescope_args)"
 read -r -a GAMESCOPE_ARGS_ARR <<< "${GAMESCOPE_ARGS:-$GAMESCOPE_DEFAULTS}"
 
+# gamescope's default cursor handling flips between confined and free
+# depending on whether the game currently hides its cursor, which guesses
+# wrong for a lot of wine games (the cursor escapes the window, or mouse
+# look stops tracking). --force-grab-cursor pins it to relative mode
+# instead, so we always pass it unless explicitly disabled.
+if [ "${GAMESCOPE_FORCE_GRAB_CURSOR:-1}" = "1" ]; then
+  GAMESCOPE_ARGS_ARR=(--force-grab-cursor "${GAMESCOPE_ARGS_ARR[@]}")
+fi
+
 export WINEPREFIX="$PREFIX_DIR"
 cd "$(dirname "$LAUNCH_EXE")"
 

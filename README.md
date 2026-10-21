@@ -128,6 +128,16 @@ NO_GAMESCOPE=1 make run stardew
 are set. If `gamescope` isn't installed, `make run` warns and falls back to
 launching wine directly.
 
+`make run` always adds `--force-grab-cursor` on top of whatever's in
+`GAMESCOPE_ARGS`/`gamescope_args`. Without it, gamescope only grabs the mouse
+in relative mode when it guesses the game wants that (based on cursor
+visibility), which guesses wrong for a lot of wine games and lets the cursor
+escape the window or breaks mouse-look. Disable it with:
+
+```sh
+GAMESCOPE_FORCE_GRAB_CURSOR=0 make run stardew
+```
+
 ### Paths with spaces
 
 Positional arguments are split on whitespace by Make itself, so a path like

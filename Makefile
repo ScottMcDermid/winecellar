@@ -57,6 +57,7 @@ help:
 	@echo "  WINEARCH=win32|win64   arch used by 'make init' (default: win64)"
 	@echo "  GAMESCOPE_ARGS='...'   flags passed to gamescope for 'make run'"
 	@echo "  NO_GAMESCOPE=1         skip gamescope and launch wine directly"
+	@echo "  GAMESCOPE_FORCE_GRAB_CURSOR=0   disable the default --force-grab-cursor gamescope flag"
 
 init:
 	@scripts/init.sh $(if $(GAME),$(call qv,$(GAME)),$(QARGS))
