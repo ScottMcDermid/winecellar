@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Remove wine prefixes: either one specific game's prefix, or all of them.
+# Remove games: either one specific game's directory (prefix, launch target,
+# and settings), or every game's directory.
 # Always asks for confirmation before deleting anything.
 set -euo pipefail
 
@@ -23,23 +24,23 @@ confirm() {
 }
 
 if [ -n "$GAME_NAME" ]; then
-  PREFIX_DIR="$(prefix_dir "$GAME_NAME")"
+  GAME_DIR="$(game_dir "$GAME_NAME")"
 
-  if [ ! -d "$PREFIX_DIR" ]; then
-    echo "No prefix found for '$GAME_NAME' at:"
-    echo "  $PREFIX_DIR"
+  if [ ! -d "$GAME_DIR" ]; then
+    echo "No game directory found for '$GAME_NAME' at:"
+    echo "  $GAME_DIR"
     exit 0
   fi
 
-  echo "This will permanently delete the wine prefix for '$GAME_NAME':"
-  echo "  $PREFIX_DIR"
+  echo "This will permanently delete the game directory for '$GAME_NAME' (its wine prefix and all settings):"
+  echo "  $GAME_DIR"
   if ! confirm "Continue?"; then
     echo "Aborted."
     exit 1
   fi
 
-  rm -rf "$PREFIX_DIR"
-  echo "Removed prefix for '$GAME_NAME'."
+  rm -rf "$GAME_DIR"
+  echo "Removed '$GAME_NAME'."
   exit 0
 fi
 
@@ -48,23 +49,23 @@ if [ ! -d "$GAMES_DIR" ]; then
   exit 0
 fi
 
-mapfile -t PREFIXES < <(find "$GAMES_DIR" -mindepth 2 -maxdepth 2 -type d -name prefix 2>/dev/null)
+mapfile -t GAME_DIRS < <(find "$GAMES_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
 
-if [ "${#PREFIXES[@]}" -eq 0 ]; then
-  echo "No prefixes found; nothing to clean."
+if [ "${#GAME_DIRS[@]}" -eq 0 ]; then
+  echo "No games found; nothing to clean."
   exit 0
 fi
 
-echo "This will permanently delete ALL wine prefixes:"
-for p in "${PREFIXES[@]}"; do
-  echo "  $p"
+echo "This will permanently delete ALL games (prefixes and all settings):"
+for d in "${GAME_DIRS[@]}"; do
+  echo "  $d"
 done
 if ! confirm "Continue?"; then
   echo "Aborted."
   exit 1
 fi
 
-for p in "${PREFIXES[@]}"; do
-  rm -rf "$p"
+for d in "${GAME_DIRS[@]}"; do
+  rm -rf "$d"
 done
-echo "Removed ${#PREFIXES[@]} prefix(es)."
+echo "Removed ${#GAME_DIRS[@]} game(s)."
