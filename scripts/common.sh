@@ -236,6 +236,16 @@ launch_exe() {
     gamescope_args_arr=(--force-grab-cursor "${gamescope_args_arr[@]}")
   fi
 
+  # Under a desktop Wayland/X11 compositor (as opposed to gamescope being the
+  # primary session, e.g. on the Steam Deck) gamescope's own window is just
+  # an ordinary floating window by default, sized to whatever the game
+  # requests — not fullscreen on the host display. -f/--fullscreen tells
+  # gamescope to take over the whole screen, so we always pass it unless
+  # explicitly disabled.
+  if [ "${GAMESCOPE_FULLSCREEN:-1}" = "1" ]; then
+    gamescope_args_arr=(-f "${gamescope_args_arr[@]}")
+  fi
+
   export WINEPREFIX="$prefix"
   cd "$(dirname "$exe")"
 
