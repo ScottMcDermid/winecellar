@@ -21,3 +21,4 @@ require_game_name() {
 game_dir() { echo "$GAMES_DIR/$1"; }
 prefix_dir() { echo "$GAMES_DIR/$1/prefix"; }
 launch_file() { echo "$GAMES_DIR/$1/launch.txt"; }
+gamescope_conf() { echo "$GAMES_DIR/$1/gamescope.conf"; }

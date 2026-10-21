@@ -6,6 +6,8 @@ isolated wine prefix.
 ## Requirements
 
 - `wine` on your `PATH`
+- `gamescope` on your `PATH` (optional, but `make run` uses it by default to
+  launch games in their own nested session)
 - GNU Make, bash
 
 ## Layout
@@ -15,8 +17,9 @@ since prefixes are large and machine-specific):
 
 ```
 games/<game_name>/
-├── prefix/        # WINEPREFIX for this game only
-└── launch.txt     # absolute path of the exe `make run` should launch
+├── prefix/            # WINEPREFIX for this game only
+├── launch.txt         # absolute path of the exe `make run` should launch
+└── gamescope.conf     # optional, default gamescope flags for this game
 ```
 
 ## Usage
@@ -53,6 +56,44 @@ make install stardew ~/Downloads/StardewValleySetup.exe 'games/stardew/prefix/dr
 
 If `install` detects no new executables at all (common for portable, no-installer
 games), it assumes the exe you passed in *is* the game and records that directly.
+
+### gamescope
+
+`make run` launches the game inside [gamescope](https://github.com/ValveSoftware/gamescope)
+by default, giving it its own nested session (handy for resolution/scaling,
+borderless/fullscreen, and keeping a misbehaving game from wrecking your
+desktop). Configure it per run or per game:
+
+```sh
+# one-off override
+GAMESCOPE_ARGS='-W 1920 -H 1080 -f' make run stardew
+
+# persistent default for this game
+echo '-W 1920 -H 1080 -f' > games/stardew/gamescope.conf
+make run stardew
+
+# skip gamescope entirely for this run
+NO_GAMESCOPE=1 make run stardew
+```
+
+`GAMESCOPE_ARGS` always wins over `gamescope.conf` when both are set. If
+`gamescope` isn't installed, `make run` warns and falls back to launching
+wine directly.
+
+### Paths with spaces
+
+Positional arguments are split on whitespace by Make itself, so a path like
+`/home/me/My Downloads/setup.exe` can't be passed positionally. Use the
+variable form instead, which keeps the value intact:
+
+```sh
+make install GAME=oblivion EXE='/home/me/My Downloads/setup.exe'
+make init GAME=oblivion
+make run GAME=oblivion
+```
+
+Parentheses, `&`, and other shell-special characters in a path are fine
+either way — they're automatically quoted for you.
 
 ### Notes
 

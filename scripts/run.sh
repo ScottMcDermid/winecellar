@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Launch the game previously recorded by `make install`.
+# Launch the game previously recorded by `make install`, nested inside
+# gamescope.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,6 +12,7 @@ require_wine
 
 PREFIX_DIR="$(prefix_dir "$GAME_NAME")"
 LAUNCH_FILE="$(launch_file "$GAME_NAME")"
+GAMESCOPE_CONF="$(gamescope_conf "$GAME_NAME")"
 
 if [ ! -d "$PREFIX_DIR" ]; then
   echo "error: no prefix found for '$GAME_NAME'. Run: make init $GAME_NAME" >&2
@@ -30,6 +32,28 @@ if [ ! -f "$LAUNCH_EXE" ]; then
   exit 1
 fi
 
-echo "Launching '$GAME_NAME': $LAUNCH_EXE"
+# gamescope options: $GAMESCOPE_ARGS wins if set, otherwise fall back to a
+# per-game default stored in games/<game_name>/gamescope.conf (one line of
+# flags, e.g. "-W 1920 -H 1080 -f").
+GAMESCOPE_DEFAULTS=""
+if [ -f "$GAMESCOPE_CONF" ]; then
+  GAMESCOPE_DEFAULTS="$(cat "$GAMESCOPE_CONF")"
+fi
+read -r -a GAMESCOPE_ARGS_ARR <<< "${GAMESCOPE_ARGS:-$GAMESCOPE_DEFAULTS}"
+
+export WINEPREFIX="$PREFIX_DIR"
 cd "$(dirname "$LAUNCH_EXE")"
-WINEPREFIX="$PREFIX_DIR" wine "$LAUNCH_EXE"
+
+if [ "${NO_GAMESCOPE:-0}" = "1" ]; then
+  echo "Launching '$GAME_NAME' (gamescope disabled): $LAUNCH_EXE"
+  exec wine "$LAUNCH_EXE"
+fi
+
+if ! command -v gamescope >/dev/null 2>&1; then
+  echo "warning: 'gamescope' not found on PATH; launching without it." >&2
+  echo "Launching '$GAME_NAME': $LAUNCH_EXE"
+  exec wine "$LAUNCH_EXE"
+fi
+
+echo "Launching '$GAME_NAME' in gamescope: $LAUNCH_EXE"
+exec gamescope "${GAMESCOPE_ARGS_ARR[@]}" -- wine "$LAUNCH_EXE"
