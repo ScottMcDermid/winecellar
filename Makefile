@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help init install run config list clean
+.PHONY: help init install run launch config list clean
 
 space := $(empty) $(empty)
 
@@ -9,6 +9,7 @@ space := $(empty) $(empty)
 #   make init mygame
 #   make install mygame setup.exe
 #   make run mygame
+#   make launch mygame
 GOAL := $(firstword $(MAKECMDGOALS))
 ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 # Single-quote each arg so filenames with (), $, etc. survive being
@@ -20,12 +21,13 @@ QARGS = $(foreach a,$(ARGS),'$(subst ','\'',$(a))')
 #   make install GAME=oblivion EXE='/path/with spaces/setup.exe'
 qv = '$(subst ','\'',$(1))'
 
-# `run` only ever takes two logical positional args (game_name, exe), so
-# unlike install/config it can safely treat everything after the first word
-# as a single reconstructed exe path, spaces and all. Make still parses each
-# whitespace-separated chunk of that path as its own "goal" though, so the
-# phony no-op rule below has to re-escape the spaces to match it as one target.
-ifeq ($(GOAL),run)
+# `run`/`launch` only ever take two logical positional args (game_name, exe),
+# so unlike install/config they can safely treat everything after the first
+# word as a single reconstructed exe path, spaces and all. Make still parses
+# each whitespace-separated chunk of that path as its own "goal" though, so
+# the phony no-op rule below has to re-escape the spaces to match it as one
+# target.
+ifneq ($(filter run launch,$(GOAL)),)
 RUN_GAME := $(firstword $(ARGS))
 RUN_EXE := $(wordlist 2,$(words $(ARGS)),$(ARGS))
 PHONY_GOALS := $(strip $(RUN_GAME) $(subst $(space),\ ,$(RUN_EXE)))
@@ -33,7 +35,7 @@ else
 PHONY_GOALS := $(ARGS)
 endif
 
-ifneq ($(filter init install run config clean,$(GOAL)),)
+ifneq ($(filter init install run launch config clean,$(GOAL)),)
 ifneq ($(strip $(PHONY_GOALS)),)
 $(eval $(PHONY_GOALS):;@:)
 endif
@@ -43,7 +45,7 @@ help:
 	@echo "Usage:"
 	@echo "  make init <game_name>                     create a wine prefix for <game_name>"
 	@echo "  make install <game_name> <exe> [launch]    run an installer/exe inside the prefix"
-	@echo "  make run <game_name> [exe]                 launch the recorded game executable, or [exe] inside its prefix"
+	@echo "  make run <game_name> [exe]                 launch the recorded game executable, or [exe] inside its prefix (alias: launch)"
 	@echo "  make config <game_name> [key] [value]      view or set an option in config.json"
 	@echo "  make list                                  list known games"
 	@echo "  make clean <game_name>                     delete one game's directory, incl. prefix (asks to confirm)"
@@ -67,6 +69,9 @@ install:
 
 run:
 	@scripts/run.sh $(if $(GAME),$(call qv,$(GAME)),$(call qv,$(RUN_GAME))) $(if $(EXE),$(call qv,$(EXE)),$(if $(RUN_EXE),$(call qv,$(RUN_EXE))))
+
+launch: run
+	@:
 
 config:
 	@scripts/config.sh $(if $(GAME),$(call qv,$(GAME)) $(if $(KEY),$(call qv,$(KEY)) $(if $(VALUE),$(call qv,$(VALUE)))),$(QARGS))

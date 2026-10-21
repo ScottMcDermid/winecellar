@@ -36,7 +36,7 @@ make init <game_name>
 #    The resulting new executable is auto-detected and remembered.
 make install <game_name> <path-to-exe>
 
-# 3. Launch the game later
+# 3. Launch the game later (`make launch` is an alias for `make run`)
 make run <game_name>
 
 # 3b. Or launch a different executable inside that same prefix
