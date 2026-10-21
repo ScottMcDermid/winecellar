@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Launch the game previously recorded by `make install`, nested inside
-# gamescope. Optionally launch a different executable inside the same
-# prefix instead, without touching the recorded launch target.
+# gamescope by default. Optionally launch a different executable inside the
+# same prefix instead (without touching the recorded launch target); that
+# case defaults to gamescope OFF, since a one-off exe is usually a tool or
+# installer rather than the game itself.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,6 +26,10 @@ if [ -n "$EXE_OVERRIDE" ]; then
     die "executable not found: $EXE_OVERRIDE"
   fi
   LAUNCH_EXE="$(cd "$(dirname "$EXE_OVERRIDE")" && pwd)/$(basename "$EXE_OVERRIDE")"
+  # An explicit exe (e.g. `make run <game> <file>`) is usually a one-off
+  # tool/installer rather than the game itself, so gamescope defaults OFF;
+  # override with NO_GAMESCOPE=0.
+  DEFAULT_NO_GAMESCOPE=1
 else
   LAUNCH_EXE="$(config_get "$GAME_NAME" launch)"
 
@@ -36,7 +42,10 @@ else
   if [ ! -f "$LAUNCH_EXE" ]; then
     die "recorded launch executable is missing: $LAUNCH_EXE"
   fi
+
+  # The recorded launch target (`make run <game>`) gets gamescope on by
+  # default; override with NO_GAMESCOPE=1.
+  DEFAULT_NO_GAMESCOPE=0
 fi
 
-# Games get gamescope on by default; override with NO_GAMESCOPE=1.
-launch_exe "$GAME_NAME" "$LAUNCH_EXE" 0 "$(bold "$GAME_NAME")"
+launch_exe "$GAME_NAME" "$LAUNCH_EXE" "$DEFAULT_NO_GAMESCOPE" "$(bold "$GAME_NAME")"

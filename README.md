@@ -145,10 +145,13 @@ which key you use.
 
 ### gamescope
 
-`make run` launches the game inside [gamescope](https://github.com/ValveSoftware/gamescope)
+`make run <game_name>` launches the recorded game inside [gamescope](https://github.com/ValveSoftware/gamescope)
 by default, giving it its own nested session (handy for resolution/scaling,
 borderless/fullscreen, and keeping a misbehaving game from wrecking your
-desktop). Configure it per run or per game:
+desktop). `make run <game_name> <path-to-exe>` (launching a one-off exe
+instead of the recorded game) flips the default to *off*, since that's
+usually a tool or installer rather than the game itself; force it on with
+`NO_GAMESCOPE=0`. Configure it per run or per game:
 
 ```sh
 # one-off override
@@ -208,8 +211,9 @@ either way — they're automatically quoted for you.
 - Need a one-off, e.g. a mod tool or benchmark that lives in the same
   prefix? Pass its path as a second argument: `make run <game_name>
   <path-to-exe>`. This launches from that executable's own directory and
-  respects the same gamescope settings, but doesn't touch the recorded
-  `launch` config value.
+  respects the same `gamescope_args`/`GAMESCOPE_ARGS` config, but doesn't
+  touch the recorded `launch` config value. Gamescope defaults to *off* for
+  this one-off form; force it on with `NO_GAMESCOPE=0`.
 - Need the same auxiliary exe again later (a mod manager, a benchmark you
   run repeatedly, etc.)? Give it a name with `make tool <game_name> <name>
   <path-to-exe>` instead, so you can launch it again with just `make tool

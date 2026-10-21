@@ -19,7 +19,7 @@ echo
 echo "$(bold "Usage")"
 cmd "make init <game_name>" "create a wine prefix for <game_name>"
 cmd "make install <game_name> <exe> [launch]" "run an installer/exe inside the prefix"
-cmd "make run <game_name> [exe]" "launch the recorded executable, or [exe] (alias: launch)"
+cmd "make run <game_name> [exe]" "launch the recorded executable (gamescope on), or [exe] (gamescope off) (alias: launch)"
 cmd "make tool <game_name> [name] [exe]" "record/launch an auxiliary exe in the prefix, e.g. a mod manager (gamescope off by default)"
 cmd "make config <game_name> [key] [value]" "view or set an option in config.json"
 cmd "make list" "list known games"
