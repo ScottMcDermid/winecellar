@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help init install run list
+.PHONY: help init install run list clean
 
 # Allow positional args after the subcommand, e.g.:
 #   make init mygame
@@ -18,7 +18,7 @@ QARGS = $(foreach a,$(ARGS),'$(subst ','\'',$(a))')
 #   make install GAME=oblivion EXE='/path/with spaces/setup.exe'
 qv = '$(subst ','\'',$(1))'
 
-ifneq ($(filter init install run,$(GOAL)),)
+ifneq ($(filter init install run clean,$(GOAL)),)
 $(eval $(ARGS):;@:)
 endif
 
@@ -28,6 +28,8 @@ help:
 	@echo "  make install <game_name> <exe> [launch]    run an installer/exe inside the prefix"
 	@echo "  make run <game_name>                       launch the recorded game executable"
 	@echo "  make list                                  list known games"
+	@echo "  make clean <game_name>                     delete one game's wine prefix (asks to confirm)"
+	@echo "  make clean                                 delete ALL wine prefixes (asks to confirm)"
 	@echo
 	@echo "If a path contains spaces, use variables instead of positional args:"
 	@echo "  make install GAME=<game_name> EXE='/path/with spaces/setup.exe' [LAUNCH='...']"
@@ -52,3 +54,6 @@ list:
 	else \
 		echo "No games yet. Run 'make init <game_name>' first."; \
 	fi
+
+clean:
+	@scripts/clean.sh $(if $(GAME),$(call qv,$(GAME)),$(QARGS))
