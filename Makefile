@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help init install run launch tool config list clean
+.PHONY: help init install run launch tool regedit config list clean
 
 space := $(empty) $(empty)
 
@@ -48,7 +48,7 @@ else
 PHONY_GOALS := $(ARGS)
 endif
 
-ifneq ($(filter init install run launch tool config clean,$(GOAL)),)
+ifneq ($(filter init install run launch tool regedit config clean,$(GOAL)),)
 ifneq ($(strip $(PHONY_GOALS)),)
 $(eval $(PHONY_GOALS):;@:)
 endif
@@ -71,6 +71,9 @@ launch: run
 
 tool:
 	@scripts/tool.sh $(if $(GAME),$(call qv,$(GAME)),$(call qv,$(TOOL_GAME))) $(if $(TOOL),$(call qv,$(TOOL)),$(if $(TOOL_NAME),$(call qv,$(TOOL_NAME)))) $(if $(EXE),$(call qv,$(EXE)),$(if $(TOOL_EXE),$(call qv,$(TOOL_EXE))))
+
+regedit:
+	@scripts/regedit.sh $(if $(GAME),$(call qv,$(GAME)),$(QARGS))
 
 config:
 	@scripts/config.sh $(if $(GAME),$(call qv,$(GAME)) $(if $(KEY),$(call qv,$(KEY)) $(if $(VALUE),$(call qv,$(VALUE)))),$(QARGS))
