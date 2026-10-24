@@ -21,6 +21,6 @@ for name in "${GAME_DIRS[@]}"; do
   if [ -n "$LAUNCH" ]; then
     printf '  %s●%s %-20s %s\n' "$C_GREEN" "$C_RESET" "$name" "$(dim "$LAUNCH")"
   else
-    printf '  %s●%s %-20s %s\n' "$C_YELLOW" "$C_RESET" "$name" "$(dim "no launch target — run: make install $name <path-to-exe>")"
+    printf '  %s●%s %-20s %s\n' "$C_YELLOW" "$C_RESET" "$name" "$(dim "no launch target - run: make install $name <path-to-exe>")"
   fi
 done

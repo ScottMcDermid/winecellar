@@ -1,4 +1,4 @@
-# game-framework
+# winecellar
 
 Makefile-driven tooling for running Windows games on Linux, each in its own
 isolated wine prefix.
@@ -88,7 +88,7 @@ games), it assumes the exe you passed in *is* the game and records that directly
 
 ### Installing from an `.iso`
 
-`make install` also accepts a disc image directly — handy for GOG/retail
+`make install` also accepts a disc image directly - handy for GOG/retail
 installers distributed as `.iso`:
 
 ```sh
@@ -110,7 +110,7 @@ Multiple possible installers found inside /home/me/Downloads/Skyrim.iso:
 Select the one to run [1-2]:
 ```
 
-Everything else — new-exe detection, the `launch` override argument, etc. —
+Everything else - new-exe detection, the `launch` override argument, etc. -
 works the same as installing from a plain `.exe`. The extracted copy is
 deleted once `install` finishes; only what the installer wrote into
 `games/<game_name>/prefix/` sticks around. Requires `7z` (p7zip) on your
@@ -120,13 +120,13 @@ Some older discs (CD-ROM XA/Mode 2 titles, hybrid Mac/PC discs burned with
 tools like Toast, etc.) are dumped as a raw image with 2352-byte sectors
 instead of the plain 2048-byte layout most ISO tools expect, so they fail
 plain extraction even though the file is a perfectly valid `.iso`. `install`
-detects that case automatically and converts it before extracting — this
+detects that case automatically and converts it before extracting - this
 step needs `python3` on your `PATH` (only when this fallback actually
 triggers; a standard `.iso` never needs it).
 
 ### Mod managers & other auxiliary tools (`make tool`)
 
-Some tools need to run *inside* the same wine prefix as the game — a mod
+Some tools need to run *inside* the same wine prefix as the game - a mod
 manager like [Wrye Bash](https://www.nexusmods.com/oblivion/mods/22368) is
 the canonical example: it reads the game's registry keys, `Data` folder, and
 plugin list, so it has to share the prefix rather than live in its own.
@@ -237,7 +237,7 @@ make install oblivion '/home/me/My Downloads/setup.exe'
 make tool oblivion wrye-bash '/home/me/My Downloads/Wrye Bash.exe'
 ```
 
-That reconstruction only covers one trailing path, though — `make config`
+That reconstruction only covers one trailing path, though - `make config`
 (`key`/`value`) and `install`'s optional launch-override 3rd arg can't tell
 where one argument ends and the next begins once spaces are involved, so
 those need the variable form instead, which keeps each value intact
@@ -253,7 +253,7 @@ make config GAME=oblivion KEY=gamescope_args VALUE='-W 1920 -H 1080 -f'
 ```
 
 Parentheses, `&`, and other shell-special characters in a path are fine
-either way — they're automatically quoted for you.
+either way - they're automatically quoted for you.
 
 ### Notes
 

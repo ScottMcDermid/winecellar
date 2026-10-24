@@ -72,7 +72,7 @@ if [[ "${EXE_PATH,,}" == *.iso ]]; then
 
   # Prefer the conventional installer names, preferring whichever sits
   # shallowest in the image (so a handful of decoy copies bundled alongside
-  # it — Acrobat Reader, DirectX, an uninstaller stub, etc. — don't out-vote
+  # it - Acrobat Reader, DirectX, an uninstaller stub, etc. - don't out-vote
   # the real one); fall back to every .exe in the image, skipping
   # redistributable bundles, which are never the game's own installer.
   shallowest_paths() {

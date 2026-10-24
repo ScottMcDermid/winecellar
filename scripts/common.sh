@@ -54,7 +54,7 @@ require_7z() {
 }
 
 # Some CD images are distributed as raw dumps with 2352-byte sectors (common
-# for CD-ROM XA/Mode 2 discs — older multimedia titles, hybrid Mac/PC discs
+# for CD-ROM XA/Mode 2 discs - older multimedia titles, hybrid Mac/PC discs
 # burned with tools like Toast, etc.) instead of the plain 2048-byte-sector
 # layout most ISO tools (including 7z) expect, so straightforward extraction
 # fails even though the file ends in .iso. Detects that layout by looking
@@ -239,7 +239,7 @@ launch_exe() {
   # Under a desktop Wayland/X11 compositor (as opposed to gamescope being the
   # primary session, e.g. on the Steam Deck) gamescope's own window is just
   # an ordinary floating window by default, sized to whatever the game
-  # requests — not fullscreen on the host display. -f/--fullscreen tells
+  # requests - not fullscreen on the host display. -f/--fullscreen tells
   # gamescope to take over the whole screen, so we always pass it unless
   # explicitly disabled.
   if [ "${GAMESCOPE_FULLSCREEN:-1}" = "1" ]; then

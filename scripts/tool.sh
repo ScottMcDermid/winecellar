@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Record and launch auxiliary executables that live inside a game's wine
-# prefix but aren't the game itself — e.g. a mod manager like Wrye Bash that
+# prefix but aren't the game itself - e.g. a mod manager like Wrye Bash that
 # needs to run alongside the game (same prefix, same Data folder) without
 # disturbing the recorded `launch` target that `make run` uses.
 #

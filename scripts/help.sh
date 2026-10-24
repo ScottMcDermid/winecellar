@@ -14,7 +14,7 @@ cmd() {
 }
 flag() { printf '  %s%-23s%s %s\n' "$C_MAGENTA" "$1" "$C_RESET" "$2"; }
 
-echo "$(bold "game-framework") $(dim "— run Windows games on Linux, one isolated wine prefix per game")"
+echo "$(bold "winecellar") $(dim "- run Windows games on Linux, one isolated wine prefix per game")"
 echo
 echo "$(bold "Usage")"
 cmd "make init <game_name>" "create a wine prefix for <game_name>"
@@ -29,7 +29,7 @@ cmd "make clean" "delete ALL games' directories (asks to confirm)"
 echo
 echo "$(bold "Paths with spaces")"
 echo "  the <exe>/<tool exe> path can have spaces positionally, but extra"
-echo "  optional args ([launch], config's [key] [value]) can't — use variables:"
+echo "  optional args ([launch], config's [key] [value]) can't - use variables:"
 cmd "make install GAME=<game_name> EXE='/path/with spaces/setup.exe' [LAUNCH='...']" ""
 cmd "make run GAME=<game_name> EXE='/path/with spaces/game.exe'" ""
 cmd "make tool GAME=<game_name> TOOL=<name> EXE='/path/with spaces/tool.exe'" ""

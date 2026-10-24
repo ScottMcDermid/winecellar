@@ -26,7 +26,7 @@ qv = '$(subst ','\'',$(1))'
 # a single reconstructed exe path, spaces and all. `install` is the same
 # idea: a positional launch-override 3rd arg would be ambiguous once the exe
 # path itself can contain spaces, so it's dropped from the positional form
-# entirely — use LAUNCH= for that. `tool` keeps its 3rd arg, but only because
+# entirely - use LAUNCH= for that. `tool` keeps its 3rd arg, but only because
 # the word in between (tool_name) is never expected to contain spaces.
 # Make still parses each whitespace-separated chunk of that path as its own
 # "goal" though, so the phony no-op rule below has to re-escape the spaces
