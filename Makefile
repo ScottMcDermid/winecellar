@@ -7,7 +7,7 @@ SHELL := /usr/bin/env bash
 # eval'd as shell: those two lines would get eval'd right along with it.
 MAKEFLAGS += --no-print-directory
 
-.PHONY: help init install run launch tool regedit config list clean kill logs completion completion-zsh
+.PHONY: help init install run launch tool regedit config list menu clean kill logs completion completion-zsh
 
 space := $(empty) $(empty)
 
@@ -92,6 +92,9 @@ config:
 
 list:
 	@scripts/list.sh
+
+menu:
+	@scripts/menu.sh
 
 clean:
 	@scripts/clean.sh $(if $(GAME),$(call qv,$(GAME)),$(QARGS))

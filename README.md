@@ -69,6 +69,22 @@ make list
 make kill <game_name>
 ```
 
+### Interactive menu (`make menu`)
+
+Prefer picking from a list over remembering `<game_name>`s and flags?
+`make menu` is a numbered, interactive front end over everything above - browse
+existing games, launch them, install/reinstall, record and launch tools, view
+or edit config, open the registry editor, view logs, kill a stuck session, or
+set up a brand-new game, all from one menu:
+
+```sh
+make menu
+```
+
+It just shells out to the same scripts behind `make run`/`make install`/etc.,
+so behavior (logs, gamescope, confirmations before deleting a game, ...) is
+identical either way - this is purely a friendlier way to drive them.
+
 ### Example
 
 ```sh

@@ -16,7 +16,7 @@
 _winecellar_root() {
   local dir="$PWD"
   while :; do
-    if [ -f "$dir/Makefile" ] && grep -q '^\.PHONY: help init install run launch tool regedit config list clean kill logs completion completion-zsh$' "$dir/Makefile" 2>/dev/null; then
+    if [ -f "$dir/Makefile" ] && grep -q '^\.PHONY: help init install run launch tool regedit config list menu clean kill logs completion completion-zsh$' "$dir/Makefile" 2>/dev/null; then
       printf '%s' "$dir"
       return 0
     fi
@@ -68,7 +68,7 @@ _winecellar_make() {
   cur="${COMP_WORDS[COMP_CWORD]}"
   prev="${COMP_WORDS[COMP_CWORD - 1]:-}"
 
-  local -a subcommands=(help init install run launch tool regedit config list clean kill logs completion completion-zsh)
+  local -a subcommands=(help init install run launch tool regedit config list menu clean kill logs completion completion-zsh)
 
   # Find the subcommand: the first word after `make` that isn't a VAR=value
   # assignment.

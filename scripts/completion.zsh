@@ -17,7 +17,7 @@
 _winecellar_root() {
   local dir="$PWD"
   while true; do
-    if [[ -f "$dir/Makefile" ]] && grep -q '^\.PHONY: help init install run launch tool regedit config list clean kill logs completion completion-zsh$' "$dir/Makefile" 2>/dev/null; then
+    if [[ -f "$dir/Makefile" ]] && grep -q '^\.PHONY: help init install run launch tool regedit config list menu clean kill logs completion completion-zsh$' "$dir/Makefile" 2>/dev/null; then
       print -r -- "$dir"
       return 0
     fi
@@ -78,6 +78,7 @@ _winecellar_make() {
     "regedit:launch wine's registry editor inside the prefix"
     'config:view or set an option in config.json'
     'list:list known games'
+    'menu:interactive menu - browse/launch games, set up new games and tools'
     'clean:delete one (or ALL) game directories, incl. prefix'
     "kill:force-kill a game's gamescope/wine session by hand"
     'logs:print gamescope/wine output from the last run'
