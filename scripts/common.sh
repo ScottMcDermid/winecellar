@@ -347,12 +347,22 @@ watch_stuck_gamescope() {
 #   exe                   absolute path to the executable to run
 #   default_no_gamescope  gamescope default when $NO_GAMESCOPE isn't set ("0"=on, "1"=off)
 #   label                 human-readable description for log messages
+#   log_name              filename stem (no extension) for this run's logfile,
+#                          under games/<game_name>/logs/ - e.g. "run" or
+#                          "tool-wrye-bash". Keeps stdout to our own succinct
+#                          status lines; gamescope/wine's own (very chatty)
+#                          output goes to the logfile instead.
 launch_exe() {
-  local game="$1" exe="$2" default_no_gamescope="$3" label="$4"
+  local game="$1" exe="$2" default_no_gamescope="$3" label="$4" log_name="${5:-run}"
   local prefix
   prefix="$(prefix_dir "$game")"
 
   mount_cdrom "$game" "$prefix"
+
+  local log_dir log_file
+  log_dir="$(game_dir "$game")/logs"
+  mkdir -p "$log_dir"
+  log_file="$log_dir/$log_name.log"
 
   # gamescope options: $GAMESCOPE_ARGS wins if set, otherwise fall back to a
   # per-game default stored in games/<game_name>/config.json under the
@@ -392,22 +402,27 @@ launch_exe() {
   no_gamescope="${NO_GAMESCOPE:-$(config_get "$game" no_gamescope "$default_no_gamescope")}"
   if [ "$no_gamescope" = "1" ]; then
     log_step "Launching $label $(dim "(gamescope disabled)"): $exe"
-    exec wine "$exe"
+    log_info "Output logged to $(dim "$log_file")"
+    exec wine "$exe" >"$log_file" 2>&1
   fi
 
   if ! command -v gamescope >/dev/null 2>&1; then
     log_warn "'gamescope' not found on PATH; launching without it."
     log_step "Launching $label: $exe"
-    exec wine "$exe"
+    log_info "Output logged to $(dim "$log_file")"
+    exec wine "$exe" >"$log_file" 2>&1
   fi
 
   log_step "Launching $label $(dim "in gamescope"): $exe"
+  log_info "Output logged to $(dim "$log_file")"
 
   # Run gamescope in the background (instead of exec'ing it) so this shell
   # stays alive to watch for it outliving the game - see
   # watch_stuck_gamescope above - and to make sure Ctrl+C actually tears the
   # session down instead of leaving a stuck gamescope holding the terminal.
-  gamescope "${gamescope_args_arr[@]}" -- wine "$exe" &
+  # Its (very chatty) output goes to the logfile rather than our own
+  # stdout, same as the direct-wine paths above.
+  gamescope "${gamescope_args_arr[@]}" -- wine "$exe" >"$log_file" 2>&1 &
   local gs_pid=$!
 
   local watch_pid=""
@@ -425,5 +440,6 @@ launch_exe() {
   local status=0
   wait "$gs_pid" || status=$?
   [ -n "$watch_pid" ] && kill "$watch_pid" 2>/dev/null
+  log_step "$label exited $(dim "(status $status)")"
   exit "$status"
 }

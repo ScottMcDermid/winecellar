@@ -47,4 +47,4 @@ else
   DEFAULT_NO_GAMESCOPE=0
 fi
 
-launch_exe "$GAME_NAME" "$LAUNCH_EXE" "$DEFAULT_NO_GAMESCOPE" "$(bold "$GAME_NAME")"
+launch_exe "$GAME_NAME" "$LAUNCH_EXE" "$DEFAULT_NO_GAMESCOPE" "$(bold "$GAME_NAME")" run

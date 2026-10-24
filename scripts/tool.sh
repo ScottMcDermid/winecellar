@@ -71,4 +71,4 @@ else
 fi
 
 # Tools default to gamescope OFF; override with NO_GAMESCOPE=0.
-launch_exe "$GAME_NAME" "$TOOL_EXE" 1 "$(bold "$GAME_NAME") $(dim "tool: $TOOL_NAME")"
+launch_exe "$GAME_NAME" "$TOOL_EXE" 1 "$(bold "$GAME_NAME") $(dim "tool: $TOOL_NAME")" "tool-$TOOL_NAME"

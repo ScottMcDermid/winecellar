@@ -21,12 +21,22 @@ since prefixes are large and machine-specific):
 ```
 games/<game_name>/
 ├── prefix/            # WINEPREFIX for this game only
-└── config.json        # generated, per-game options (e.g. launch exe, gamescope args)
+├── config.json        # generated, per-game options (e.g. launch exe, gamescope args)
+└── logs/               # gamescope/wine output from the last `run` and each `tool`
 ```
 
 `config.json` is a small, flat JSON object. `make install` and `make config`
 write to it; `make run` reads from it. You generally don't need to edit it by
 hand, but it's just JSON if you want to.
+
+`make run`/`make tool` keep the terminal to their own succinct status lines;
+gamescope and wine's own (very chatty) output is redirected to
+`games/<game_name>/logs/run.log` (or `tool-<name>.log` for `make tool`),
+overwritten each time you launch. Worth a look if something misbehaves:
+
+```sh
+tail -f games/<game_name>/logs/run.log
+```
 
 ## Usage
 
@@ -255,6 +265,12 @@ from another terminal:
 ```sh
 make kill <game_name>
 ```
+
+The automatic watcher only triggers once the game's own wine process has
+actually exited - if wine itself is wedged (some games deadlock internally,
+e.g. during intro-movie/cutscene playback - look for a thread stuck waiting
+in `games/<game_name>/logs/run.log` if this happens), there's nothing for it
+to notice, and `Ctrl+C`/`make kill` are what you need instead.
 
 ### Paths with spaces
 
