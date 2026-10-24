@@ -339,6 +339,63 @@ watch_stuck_gamescope() {
   force_kill_game "$game"
 }
 
+# Known log lines that mean wine itself is wedged, as opposed to gamescope
+# just failing to notice a clean exit (watch_stuck_gamescope above) - e.g.
+# the DirectShow/quartz filter-graph deadlock some Bethesda-engine games hit
+# tearing down video playback on exit, which doesn't actually resolve once
+# hit. In that case the wrapped wine process never exits at all, so there's
+# nothing for watch_stuck_gamescope's "has the game exited yet" check to
+# ever notice - this instead watches the logfile directly for one of these
+# to show up. Add more here as other known-unrecoverable patterns turn up.
+HUNG_WINE_LOG_PATTERNS=(
+  'err:quartz:BaseMemAllocator_Decommit Waiting'
+)
+
+# Companion to watch_stuck_gamescope: watches the logfile for a sign that
+# wine itself is wedged (see HUNG_WINE_LOG_PATTERNS above) rather than
+# waiting for the process to exit, since it never will if this is what's
+# going on. To avoid treating an isolated, benign print of one of these
+# lines as a permanent hang, it waits for a further grace period of log
+# inactivity afterwards before concluding it's genuinely stuck - if wine
+# goes on to log anything else (or exits on its own), nothing happens.
+watch_hung_wine_log() {
+  local game="$1" gs_pid="$2" log_file="$3"
+  local grace="${WINE_HANG_GRACE:-15}"
+
+  local pattern="" p
+  while kill -0 "$gs_pid" 2>/dev/null; do
+    if [ -f "$log_file" ]; then
+      for p in "${HUNG_WINE_LOG_PATTERNS[@]}"; do
+        if grep -Fq -- "$p" "$log_file" 2>/dev/null; then
+          pattern="$p"
+          break 2
+        fi
+      done
+    fi
+    sleep 2
+  done
+  [ -z "$pattern" ] && return 0 # gamescope/wine exited before we ever saw it - nothing to do
+
+  local before
+  before="$(stat -c '%s' "$log_file" 2>/dev/null || echo 0)"
+  local waited=0
+  while [ "$waited" -lt "$grace" ] && kill -0 "$gs_pid" 2>/dev/null; do
+    sleep 1
+    waited=$((waited + 1))
+  done
+  kill -0 "$gs_pid" 2>/dev/null || return 0 # exited on its own while we waited - not stuck after all
+
+  local after
+  after="$(stat -c '%s' "$log_file" 2>/dev/null || echo 0)"
+  # Still logging something, even if it's not necessarily obvious progress -
+  # treat that as "not hung (yet)" and leave it to keep running; worst case
+  # watch_stuck_gamescope or the next poll of this one still has it covered.
+  [ "$after" != "$before" ] && return 0
+
+  log_warn "wine looks wedged $(dim "(saw '$pattern', then no further output for ${grace}s)"); force-killing the session..."
+  force_kill_game "$game"
+}
+
 # Launches an executable inside a game's wine prefix, wrapping it in
 # gamescope unless disabled. Shared by `run` (the recorded game/exe
 # override) and `tool` (auxiliary exes like mod managers), which only
@@ -425,10 +482,14 @@ launch_exe() {
   gamescope "${gamescope_args_arr[@]}" -- wine "$exe" >"$log_file" 2>&1 &
   local gs_pid=$!
 
-  local watch_pid=""
+  local -a watch_pids=()
   if [ "${GAMESCOPE_AUTO_KILL:-1}" = "1" ]; then
     watch_stuck_gamescope "$game" "$gs_pid" &
-    watch_pid=$!
+    watch_pids+=("$!")
+    if [ "${WINE_HANG_AUTO_KILL:-1}" = "1" ]; then
+      watch_hung_wine_log "$game" "$gs_pid" "$log_file" &
+      watch_pids+=("$!")
+    fi
   fi
 
   # A Ctrl+C (or `make`/a terminal closing) sends SIGINT/SIGTERM to this
@@ -439,7 +500,9 @@ launch_exe() {
 
   local status=0
   wait "$gs_pid" || status=$?
-  [ -n "$watch_pid" ] && kill "$watch_pid" 2>/dev/null
+  if [ "${#watch_pids[@]}" -gt 0 ]; then
+    kill "${watch_pids[@]}" 2>/dev/null || true
+  fi
   log_step "$label exited $(dim "(status $status)")"
   exit "$status"
 }

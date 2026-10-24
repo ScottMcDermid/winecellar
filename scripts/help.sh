@@ -59,5 +59,7 @@ flag "GAMESCOPE_FORCE_GRAB_CURSOR=0" "disable the default --force-grab-cursor ga
 flag "GAMESCOPE_FULLSCREEN=0" "disable the default -f (fullscreen) gamescope flag"
 flag "GAMESCOPE_AUTO_KILL=0" "disable auto-killing a gamescope session that outlives the game (known upstream bug)"
 flag "GAMESCOPE_AUTO_KILL_GRACE=N" "seconds to wait before an auto-kill kicks in (default: 10)"
+flag "WINE_HANG_AUTO_KILL=0" "disable auto-killing on a known wine-internal deadlock signature (e.g. quartz)"
+flag "WINE_HANG_GRACE=N" "seconds of log inactivity after that signature before auto-killing (default: 15)"
 flag "FOLLOW=1" "tail -f instead of printing once, for 'make logs'"
 flag "NO_COLOR=1" "disable colored/styled output"

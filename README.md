@@ -260,19 +260,31 @@ GAMESCOPE_AUTO_KILL=0 make run stardew
 GAMESCOPE_AUTO_KILL_GRACE=20 make run stardew
 ```
 
+A separate watcher handles the other common way a session gets stuck: wine
+itself deadlocking internally rather than gamescope failing to notice a
+clean exit - the most common case being a DirectShow/`quartz` filter-graph
+hang some Bethesda-engine games hit tearing down video playback on exit
+(`err:quartz:BaseMemAllocator_Decommit Waiting` repeating in
+`make logs <game_name>`). Since wine's own process never exits at all in
+that case, there's nothing for the watcher above to notice - instead, once
+that specific error shows up in the log, wine gets a grace period (default
+15s) to log anything further (or exit) before being treated as stuck:
+
+```sh
+# disable just this watcher (the gamescope-exit one above still runs)
+WINE_HANG_AUTO_KILL=0 make run stardew
+
+# change its grace period (seconds)
+WINE_HANG_GRACE=30 make run stardew
+```
+
 If a session somehow gets away from all of that (e.g. one started before
-this existed), force-kill everything tied to a game's wine prefix by hand
-from another terminal:
+this existed, or some other unrecognized hang), force-kill everything tied
+to a game's wine prefix by hand from another terminal:
 
 ```sh
 make kill <game_name>
 ```
-
-The automatic watcher only triggers once the game's own wine process has
-actually exited - if wine itself is wedged (some games deadlock internally,
-e.g. during intro-movie/cutscene playback - check `make logs <game_name>`
-for a thread stuck waiting if this happens), there's nothing for it to
-notice, and `Ctrl+C`/`make kill` are what you need instead.
 
 ### Paths with spaces
 
