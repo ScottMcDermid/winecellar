@@ -301,7 +301,7 @@ force_kill_game() {
 # wrapped process is gone, gamescope gets a grace period to notice and exit
 # on its own (the normal path) before this force-kills the whole session.
 watch_stuck_gamescope() {
-  local game="$1" gs_pid="$2"
+  local game="$1" gs_pid="$2" kill_marker="$3"
   local grace="${GAMESCOPE_AUTO_KILL_GRACE:-10}"
 
   local reaper_pid="" wine_pid="" i
@@ -336,6 +336,7 @@ watch_stuck_gamescope() {
   kill -0 "$gs_pid" 2>/dev/null || return 0
 
   log_warn "gamescope is still running ${grace}s after $(bold "$game") exited $(dim "(known upstream bug)"); force-killing the session..."
+  : >"$kill_marker"
   force_kill_game "$game"
 }
 
@@ -359,7 +360,7 @@ HUNG_WINE_LOG_PATTERNS=(
 # inactivity afterwards before concluding it's genuinely stuck - if wine
 # goes on to log anything else (or exits on its own), nothing happens.
 watch_hung_wine_log() {
-  local game="$1" gs_pid="$2" log_file="$3"
+  local game="$1" gs_pid="$2" log_file="$3" kill_marker="$4"
   local grace="${WINE_HANG_GRACE:-15}"
 
   local pattern="" p
@@ -393,6 +394,7 @@ watch_hung_wine_log() {
   [ "$after" != "$before" ] && return 0
 
   log_warn "wine looks wedged $(dim "(saw '$pattern', then no further output for ${grace}s)"); force-killing the session..."
+  : >"$kill_marker"
   force_kill_game "$game"
 }
 
@@ -414,12 +416,30 @@ launch_exe() {
   local prefix
   prefix="$(prefix_dir "$game")"
 
+  # Filters bash's own "<pid> Killed <command>" job-control notice (printed
+  # whenever something below force-kills gamescope out from under us) out
+  # of our stderr - alarming and redundant on top of the explanation we
+  # already print ourselves. Everything else, including our own log_*
+  # output, passes through unchanged. Set up before WINEPREFIX is exported
+  # below so this filter process (a real subprocess, via process
+  # substitution) doesn't inherit it and get swept up by force_kill_game's
+  # own WINEPREFIX-based process scan.
+  exec 2> >(grep -Ev '(Killed|Terminated)[[:space:]]{2,}[^[:space:]]' >&2)
+
   mount_cdrom "$game" "$prefix"
 
   local log_dir log_file
   log_dir="$(game_dir "$game")/logs"
   mkdir -p "$log_dir"
   log_file="$log_dir/$log_name.log"
+
+  # Marker touched by force_kill_game's callers below (the Ctrl+C trap, and
+  # both watchers) whenever *we* intentionally tore the session down - as
+  # opposed to gamescope exiting (cleanly or not) entirely on its own.
+  # Cleared per-run so a leftover marker from a previous launch can't bleed
+  # into this one's status.
+  local kill_marker="$log_dir/.$log_name.autokilled"
+  rm -f "$kill_marker"
 
   # gamescope options: $GAMESCOPE_ARGS wins if set, otherwise fall back to a
   # per-game default stored in games/<game_name>/config.json under the
@@ -484,10 +504,10 @@ launch_exe() {
 
   local -a watch_pids=()
   if [ "${GAMESCOPE_AUTO_KILL:-1}" = "1" ]; then
-    watch_stuck_gamescope "$game" "$gs_pid" &
+    watch_stuck_gamescope "$game" "$gs_pid" "$kill_marker" &
     watch_pids+=("$!")
     if [ "${WINE_HANG_AUTO_KILL:-1}" = "1" ]; then
-      watch_hung_wine_log "$game" "$gs_pid" "$log_file" &
+      watch_hung_wine_log "$game" "$gs_pid" "$log_file" "$kill_marker" &
       watch_pids+=("$!")
     fi
   fi
@@ -496,13 +516,28 @@ launch_exe() {
   # whole process group, including gamescope - but if gamescope's own
   # shutdown path is what's stuck (the same upstream bug), it won't react.
   # Force-killing here guarantees the signal actually releases the terminal.
-  trap 'force_kill_game "$game"' INT TERM
+  trap ': >"$kill_marker"; force_kill_game "$game"' INT TERM
 
   local status=0
-  wait "$gs_pid" || status=$?
+  # The 2>/dev/null hides bash's own "<pid> Killed <command>" job-control
+  # notification for the (expected, by now) case where force_kill_game just
+  # SIGKILL'd this job out from under us - it'd otherwise look like a crash.
+  wait "$gs_pid" 2>/dev/null || status=$?
   if [ "${#watch_pids[@]}" -gt 0 ]; then
     kill "${watch_pids[@]}" 2>/dev/null || true
   fi
+
+  # If something above force-killed the session on our behalf, that's a
+  # successful (if forceful) cleanup from the user's point of view, not a
+  # crash - report success rather than propagating SIGKILL/SIGTERM's raw
+  # exit status up through `make` (which would otherwise print its own
+  # alarming "Error 137"/"Error 143" on top of our own, already-printed
+  # explanation of what happened).
+  if [ -f "$kill_marker" ]; then
+    rm -f "$kill_marker"
+    status=0
+  fi
+
   log_step "$label exited $(dim "(status $status)")"
   exit "$status"
 }
