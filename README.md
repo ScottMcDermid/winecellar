@@ -232,10 +232,25 @@ GAMESCOPE_FORCE_GRAB_CURSOR=0 make run stardew
 gamescope has a long-standing upstream bug where it sometimes hangs onto the
 terminal after the wrapped game quits normally instead of exiting on its own
 ([ValveSoftware/gamescope#777](https://github.com/ValveSoftware/gamescope/issues/777)).
-When that happens, even `Ctrl+C` won't release it, since gamescope's own
-shutdown path is what's stuck. From another terminal, force-kill everything
-tied to that game's wine prefix (gamescope, wine, wineserver, and anything
-else it spawned):
+`make run`/`make tool` watch for this automatically: once the game's own
+process has exited, gamescope gets a short grace period (default 10s) to
+notice and exit on its own; if it's still running after that, the whole
+session (gamescope, wine, wineserver) is force-killed so the terminal is
+released without you having to do anything. `Ctrl+C` also force-kills the
+session immediately, bypassing gamescope's own shutdown path entirely in
+case that's what's stuck.
+
+```sh
+# disable the automatic watcher (back to having to Ctrl+C/make kill by hand)
+GAMESCOPE_AUTO_KILL=0 make run stardew
+
+# change the grace period (seconds) before an auto-kill kicks in
+GAMESCOPE_AUTO_KILL_GRACE=20 make run stardew
+```
+
+If a session somehow gets away from all of that (e.g. one started before
+this existed), force-kill everything tied to a game's wine prefix by hand
+from another terminal:
 
 ```sh
 make kill <game_name>

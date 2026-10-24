@@ -224,6 +224,121 @@ mount_cdrom() {
   log_step "Mounted CD image for $(bold "$game") at $(bold "${drive^^}:")"
 }
 
+# Force-kills every process tied to a game's wine prefix: gamescope, wine,
+# wineserver, and anything else wine spawned. Shared by `make kill` (manual
+# cleanup) and the stuck-gamescope watcher below (automatic cleanup).
+#
+# launch_exe exports WINEPREFIX="$prefix" before launching gamescope (or
+# wine directly), so every process in that tree inherits it verbatim.
+# Scanning /proc/*/environ for an exact match finds the whole tree
+# regardless of how it's nested, with no need to guess at command lines or
+# parent/child relationships.
+force_kill_game() {
+  local game="$1"
+  local prefix
+  prefix="$(prefix_dir "$game")"
+
+  local pid env_file
+  local -a pids=()
+  for env_file in /proc/[0-9]*/environ; do
+    pid="${env_file#/proc/}"
+    pid="${pid%/environ}"
+    [ "$pid" = "$$" ] && continue
+    if grep -Fxzqs -- "WINEPREFIX=$prefix" "$env_file" 2>/dev/null; then
+      pids+=("$pid")
+    fi
+  done
+
+  if [ "${#pids[@]}" -eq 0 ]; then
+    log_info "No running processes found for $(bold "$game")."
+    return 0
+  fi
+
+  log_step "Found ${#pids[@]} process(es) for $(bold "$game") $(dim "(${pids[*]})")"
+
+  log_step "Sending SIGTERM..."
+  kill "${pids[@]}" 2>/dev/null || true
+
+  local -a remaining=()
+  local i
+  for pid in "${pids[@]}"; do
+    kill -0 "$pid" 2>/dev/null && remaining+=("$pid")
+  done
+  for ((i = 0; i < 10 && ${#remaining[@]} > 0; i++)); do
+    sleep 0.3
+    local -a still=()
+    for pid in "${remaining[@]}"; do
+      kill -0 "$pid" 2>/dev/null && still+=("$pid")
+    done
+    remaining=("${still[@]}")
+  done
+
+  if [ "${#remaining[@]}" -gt 0 ]; then
+    log_warn "${#remaining[@]} process(es) still alive after SIGTERM, sending SIGKILL $(dim "(${remaining[*]})")"
+    kill -9 "${remaining[@]}" 2>/dev/null || true
+  fi
+
+  # Belt-and-braces: wineserver can outlive the processes that were using it
+  # (or never show up in the WINEPREFIX scan if it was inherited from a
+  # differently-cased/symlinked path), so explicitly tell it to shut down too.
+  if command -v wineserver >/dev/null 2>&1; then
+    WINEPREFIX="$prefix" wineserver -k 2>/dev/null || true
+  fi
+
+  log_success "Cleaned up $(bold "$game")."
+}
+
+# Watches a gamescope session for a long-standing upstream bug where it
+# keeps running after the game it's wrapping has already exited instead of
+# releasing the terminal - https://github.com/ValveSoftware/gamescope/issues/777.
+# Gamescope spawns a dedicated "gamescopereaper" helper whose only job is
+# supervising the exact wrapped command (nothing else - not Xwayland or
+# gamescope's other internal helpers), so that process, and in turn its one
+# child, is what we track rather than guessing from WINEPREFIX-tagged pids
+# (which both gamescope-internal processes and the wrapped game share).
+#
+# Meant to run in the background alongside `wait`-ing on gamescope; once the
+# wrapped process is gone, gamescope gets a grace period to notice and exit
+# on its own (the normal path) before this force-kills the whole session.
+watch_stuck_gamescope() {
+  local game="$1" gs_pid="$2"
+  local grace="${GAMESCOPE_AUTO_KILL_GRACE:-10}"
+
+  local reaper_pid="" wine_pid="" i
+  for ((i = 0; i < 100; i++)); do
+    kill -0 "$gs_pid" 2>/dev/null || return 0
+    reaper_pid="$(pgrep -P "$gs_pid" -x gamescopereaper 2>/dev/null | head -n1)" || true
+    [ -n "$reaper_pid" ] && break
+    sleep 0.1
+  done
+  [ -z "$reaper_pid" ] && return 0 # couldn't find it; don't guess, bail out quietly
+
+  for ((i = 0; i < 100; i++)); do
+    kill -0 "$reaper_pid" 2>/dev/null || return 0
+    wine_pid="$(pgrep -P "$reaper_pid" 2>/dev/null | head -n1)" || true
+    [ -n "$wine_pid" ] && break
+    sleep 0.1
+  done
+  [ -z "$wine_pid" ] && return 0
+
+  # Wait for the wrapped process to exit. If gamescope exits first, there's
+  # nothing stuck - it beat us to it.
+  while kill -0 "$gs_pid" 2>/dev/null && kill -0 "$wine_pid" 2>/dev/null; do
+    sleep 1
+  done
+  kill -0 "$gs_pid" 2>/dev/null || return 0
+
+  local waited=0
+  while [ "$waited" -lt "$grace" ] && kill -0 "$gs_pid" 2>/dev/null; do
+    sleep 1
+    waited=$((waited + 1))
+  done
+  kill -0 "$gs_pid" 2>/dev/null || return 0
+
+  log_warn "gamescope is still running ${grace}s after $(bold "$game") exited $(dim "(known upstream bug)"); force-killing the session..."
+  force_kill_game "$game"
+}
+
 # Launches an executable inside a game's wine prefix, wrapping it in
 # gamescope unless disabled. Shared by `run` (the recorded game/exe
 # override) and `tool` (auxiliary exes like mod managers), which only
@@ -287,5 +402,28 @@ launch_exe() {
   fi
 
   log_step "Launching $label $(dim "in gamescope"): $exe"
-  exec gamescope "${gamescope_args_arr[@]}" -- wine "$exe"
+
+  # Run gamescope in the background (instead of exec'ing it) so this shell
+  # stays alive to watch for it outliving the game - see
+  # watch_stuck_gamescope above - and to make sure Ctrl+C actually tears the
+  # session down instead of leaving a stuck gamescope holding the terminal.
+  gamescope "${gamescope_args_arr[@]}" -- wine "$exe" &
+  local gs_pid=$!
+
+  local watch_pid=""
+  if [ "${GAMESCOPE_AUTO_KILL:-1}" = "1" ]; then
+    watch_stuck_gamescope "$game" "$gs_pid" &
+    watch_pid=$!
+  fi
+
+  # A Ctrl+C (or `make`/a terminal closing) sends SIGINT/SIGTERM to this
+  # whole process group, including gamescope - but if gamescope's own
+  # shutdown path is what's stuck (the same upstream bug), it won't react.
+  # Force-killing here guarantees the signal actually releases the terminal.
+  trap 'force_kill_game "$game"' INT TERM
+
+  local status=0
+  wait "$gs_pid" || status=$?
+  [ -n "$watch_pid" ] && kill "$watch_pid" 2>/dev/null
+  exit "$status"
 }
