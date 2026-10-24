@@ -11,8 +11,7 @@ EXE_PATH="${2:-}"
 LAUNCH_OVERRIDE="${3:-}"
 
 require_game_name "$GAME_NAME"
-require_wine
-require_jq
+check_deps wine jq
 
 if [ -z "$EXE_PATH" ]; then
   log_error "missing <path-to-exe> argument."
@@ -43,7 +42,7 @@ MARKER="$(mktemp)"
 trap 'rm -f "$MARKER"; [ -n "$ISO_TMPDIR" ] && rm -rf "$ISO_TMPDIR"' EXIT
 
 if [[ "${EXE_PATH,,}" == *.iso ]]; then
-  require_7z
+  check_deps 7z
 
   ISO_TMPDIR="$(mktemp -d)"
 

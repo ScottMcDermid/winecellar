@@ -13,7 +13,7 @@ KEY="${2:-}"
 VALUE="${3:-}"
 
 require_game_name "$GAME_NAME"
-require_jq
+check_deps jq
 
 CONFIG_FILE="$(config_file "$GAME_NAME")"
 

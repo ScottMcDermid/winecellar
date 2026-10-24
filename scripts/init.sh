@@ -7,7 +7,7 @@ source "$SCRIPT_DIR/common.sh"
 
 GAME_NAME="${1:-}"
 require_game_name "$GAME_NAME"
-require_wine
+check_deps wine
 
 PREFIX_DIR="$(prefix_dir "$GAME_NAME")"
 

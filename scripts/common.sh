@@ -35,22 +35,42 @@ die() {
   exit 1
 }
 
-require_wine() {
-  if ! command -v wine >/dev/null 2>&1; then
-    die "'wine' is not installed or not on PATH."
-  fi
-}
+# One-line explanation shown by check_deps next to each missing command.
+declare -A DEP_DESC=(
+  [wine]="run Windows executables inside the wine prefix"
+  [jq]="read/write each game's config.json"
+  [7z]="extract .iso installers (try installing p7zip)"
+  [gamescope]="launch games in their own nested session"
+)
 
-require_jq() {
-  if ! command -v jq >/dev/null 2>&1; then
-    die "'jq' is not installed or not on PATH (needed to read/write config.json)."
-  fi
-}
+# check_deps <cmd> [<cmd> ...]
+# Checks every command up front, before anything else runs, and - if any are
+# missing - reports all of them together in one nicely-aligned list instead
+# of dying on the first one. Without this, fixing dependencies is a
+# run/fail/install-one/re-run cycle; with it, you see everything you need in
+# one go.
+check_deps() {
+  local -a missing=()
+  local cmd
+  for cmd in "$@"; do
+    command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
+  done
+  [ "${#missing[@]}" -eq 0 ] && return 0
 
-require_7z() {
-  if ! command -v 7z >/dev/null 2>&1; then
-    die "'7z' is not installed or not on PATH (needed to extract .iso installers; try installing p7zip)."
-  fi
+  local width=0
+  for cmd in "${missing[@]}"; do
+    [ "${#cmd}" -gt "$width" ] && width="${#cmd}"
+  done
+
+  local plural="y"
+  [ "${#missing[@]}" -gt 1 ] && plural="ies"
+  log_error "missing ${#missing[@]} required dependenc$plural on PATH:"
+  echo >&2
+  for cmd in "${missing[@]}"; do
+    printf '    %s✗%s %-*s  %s\n' "$C_RED" "$C_RESET" "$width" "$cmd" "$(dim "${DEP_DESC[$cmd]:-required}")" >&2
+  done
+  echo >&2
+  exit 1
 }
 
 # Some CD images are distributed as raw dumps with 2352-byte sectors (common
@@ -176,7 +196,7 @@ mount_cdrom() {
   if [ -d "$image" ]; then
     source_dir="$image"
   else
-    require_7z
+    check_deps 7z
 
     local cache_dir stamp_file stamp
     cache_dir="$(game_dir "$game")/cdrom"

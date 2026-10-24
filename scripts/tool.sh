@@ -21,8 +21,7 @@ TOOL_NAME="${2:-}"
 EXE_PATH="${3:-}"
 
 require_game_name "$GAME_NAME"
-require_wine
-require_jq
+check_deps wine jq
 
 PREFIX_DIR="$(prefix_dir "$GAME_NAME")"
 if [ ! -d "$PREFIX_DIR" ]; then

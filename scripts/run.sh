@@ -12,8 +12,7 @@ source "$SCRIPT_DIR/common.sh"
 GAME_NAME="${1:-}"
 EXE_OVERRIDE="${2:-}"
 require_game_name "$GAME_NAME"
-require_wine
-require_jq
+check_deps wine jq
 
 PREFIX_DIR="$(prefix_dir "$GAME_NAME")"
 
