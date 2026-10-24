@@ -207,9 +207,30 @@ mount_cdrom() {
       log_step "Extracting CD image for $(bold "$game") $(dim "(cached under games/$game/cdrom)")..."
       rm -rf "$cache_dir"
       mkdir -p "$cache_dir"
-      if ! 7z x -y -o"$cache_dir" -- "$image" >/dev/null; then
+      if ! 7z x -y -o"$cache_dir" -- "$image" >/dev/null 2>/dev/null; then
+        if ! command -v python3 >/dev/null 2>&1; then
+          rm -rf "$cache_dir"
+          die "failed to extract CD image: $image (if this is a raw/2352-byte-sector CD image, converting it needs python3, which isn't on PATH)"
+        fi
+
+        log_warn "standard extraction failed; checking for a raw (2352-byte sector) CD image..."
+        local converted_iso
+        converted_iso="$(mktemp --suffix=.iso)"
+        if ! convert_raw_cd_image "$image" "$converted_iso"; then
+          rm -f "$converted_iso"
+          rm -rf "$cache_dir"
+          die "failed to extract CD image: $image"
+        fi
+
         rm -rf "$cache_dir"
-        die "failed to extract CD image: $image"
+        mkdir -p "$cache_dir"
+        if ! 7z x -y -o"$cache_dir" -- "$converted_iso" >/dev/null; then
+          rm -f "$converted_iso"
+          rm -rf "$cache_dir"
+          die "failed to extract CD image even after raw-sector conversion: $image"
+        fi
+        rm -f "$converted_iso"
+        log_info "Detected a raw (2352-byte sector) CD image and converted it before extracting."
       fi
       echo "$stamp" >"$stamp_file"
     fi
