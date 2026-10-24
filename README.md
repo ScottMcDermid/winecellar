@@ -52,6 +52,9 @@ make tool <game_name> wrye-bash
 
 # See what's been set up
 make list
+
+# Stuck session (gamescope hung after quitting)? Force-kill it:
+make kill <game_name>
 ```
 
 ### Example
@@ -222,6 +225,20 @@ escape the window or breaks mouse-look. Disable it with:
 
 ```sh
 GAMESCOPE_FORCE_GRAB_CURSOR=0 make run stardew
+```
+
+#### Stuck sessions
+
+gamescope has a long-standing upstream bug where it sometimes hangs onto the
+terminal after the wrapped game quits normally instead of exiting on its own
+([ValveSoftware/gamescope#777](https://github.com/ValveSoftware/gamescope/issues/777)).
+When that happens, even `Ctrl+C` won't release it, since gamescope's own
+shutdown path is what's stuck. From another terminal, force-kill everything
+tied to that game's wine prefix (gamescope, wine, wineserver, and anything
+else it spawned):
+
+```sh
+make kill <game_name>
 ```
 
 ### Paths with spaces

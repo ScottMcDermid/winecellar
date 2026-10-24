@@ -26,6 +26,7 @@ cmd "make config <game_name> [key] [value]" "view or set an option in config.jso
 cmd "make list" "list known games"
 cmd "make clean <game_name>" "delete one game's directory, incl. prefix (asks to confirm)"
 cmd "make clean" "delete ALL games' directories (asks to confirm)"
+cmd "make kill <game_name>" "force-kill a stuck gamescope/wine session for <game_name>"
 echo
 echo "$(bold "Paths with spaces")"
 echo "  the <exe>/<tool exe> path can have spaces positionally, but extra"
