@@ -28,6 +28,8 @@ cmd "make clean <game_name>" "delete one game's directory, incl. prefix (asks to
 cmd "make clean" "delete ALL games' directories (asks to confirm)"
 cmd "make kill <game_name>" "force-kill a game's gamescope/wine session by hand (auto-kill usually handles this)"
 cmd "make logs <game_name> [name]" "print gamescope/wine output from the last run (default: run; or e.g. a tool's name)"
+cmd "make completion" "print a bash tab-completion script (eval \"\$(make completion)\" in ~/.bashrc)"
+cmd "make completion-zsh" "print a zsh tab-completion script (eval \"\$(make completion-zsh)\" in ~/.zshrc)"
 echo
 echo "$(bold "Paths with spaces")"
 echo "  the <exe>/<tool exe> path can have spaces positionally, but extra"

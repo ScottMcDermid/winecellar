@@ -1,7 +1,13 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
+# `-C` (as in `make -C /path/to/winecellar completion`) implicitly turns on
+# `-w`/--print-directory, which prints "make: Entering/Leaving directory
+# '...'" lines to stdout around the recipe's own output. Harmless normally,
+# but fatal for `completion`/`completion-zsh`, whose output is meant to be
+# eval'd as shell: those two lines would get eval'd right along with it.
+MAKEFLAGS += --no-print-directory
 
-.PHONY: help init install run launch tool regedit config list clean kill logs
+.PHONY: help init install run launch tool regedit config list clean kill logs completion completion-zsh
 
 space := $(empty) $(empty)
 
@@ -56,6 +62,12 @@ endif
 
 help:
 	@scripts/help.sh
+
+completion:
+	@scripts/completion.sh
+
+completion-zsh:
+	@scripts/completion-zsh.sh
 
 init:
 	@scripts/init.sh $(if $(GAME),$(call qv,$(GAME)),$(QARGS))

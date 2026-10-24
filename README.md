@@ -286,6 +286,27 @@ to a game's wine prefix by hand from another terminal:
 make kill <game_name>
 ```
 
+### Tab completion
+
+`make completion` (bash) / `make completion-zsh` (zsh) print a tab-completion
+script for this project's subcommands (`init`, `install`, `run`, `tool`,
+`config`, ...), `<game_name>` (from `games/`), recorded tool names, config
+keys, and log names. Add one to your shell once:
+
+```sh
+# bash (~/.bashrc)
+echo 'eval "$(make -C /path/to/winecellar completion)"' >> ~/.bashrc
+
+# zsh (~/.zshrc, after compinit)
+echo 'eval "$(make -C /path/to/winecellar completion-zsh)"' >> ~/.zshrc
+```
+
+(or `source /path/to/winecellar/scripts/completion.bash`/`completion.zsh`
+directly). Either only takes over `make` completion while you're inside a
+winecellar checkout, so they're safe to add globally - everywhere else,
+`make` completion behaves as it did before (falling back to bash-completion's
+`_make`/zsh's `_make`, if installed).
+
 ### Paths with spaces
 
 `make run`, `make launch`, `make tool`, and `make install` each reconstruct
