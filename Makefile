@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help init install run launch tool regedit config list clean kill
+.PHONY: help init install run launch tool regedit config list clean kill logs
 
 space := $(empty) $(empty)
 
@@ -48,7 +48,7 @@ else
 PHONY_GOALS := $(ARGS)
 endif
 
-ifneq ($(filter init install run launch tool regedit config clean kill,$(GOAL)),)
+ifneq ($(filter init install run launch tool regedit config clean kill logs,$(GOAL)),)
 ifneq ($(strip $(PHONY_GOALS)),)
 $(eval $(PHONY_GOALS):;@:)
 endif
@@ -86,3 +86,6 @@ clean:
 
 kill:
 	@scripts/kill.sh $(if $(GAME),$(call qv,$(GAME)),$(QARGS))
+
+logs:
+	@scripts/logs.sh $(if $(GAME),$(call qv,$(GAME)) $(if $(NAME),$(call qv,$(NAME))),$(QARGS))

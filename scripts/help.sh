@@ -27,6 +27,7 @@ cmd "make list" "list known games"
 cmd "make clean <game_name>" "delete one game's directory, incl. prefix (asks to confirm)"
 cmd "make clean" "delete ALL games' directories (asks to confirm)"
 cmd "make kill <game_name>" "force-kill a game's gamescope/wine session by hand (auto-kill usually handles this)"
+cmd "make logs <game_name> [name]" "print gamescope/wine output from the last run (default: run; or e.g. a tool's name)"
 echo
 echo "$(bold "Paths with spaces")"
 echo "  the <exe>/<tool exe> path can have spaces positionally, but extra"
@@ -58,4 +59,5 @@ flag "GAMESCOPE_FORCE_GRAB_CURSOR=0" "disable the default --force-grab-cursor ga
 flag "GAMESCOPE_FULLSCREEN=0" "disable the default -f (fullscreen) gamescope flag"
 flag "GAMESCOPE_AUTO_KILL=0" "disable auto-killing a gamescope session that outlives the game (known upstream bug)"
 flag "GAMESCOPE_AUTO_KILL_GRACE=N" "seconds to wait before an auto-kill kicks in (default: 10)"
+flag "FOLLOW=1" "tail -f instead of printing once, for 'make logs'"
 flag "NO_COLOR=1" "disable colored/styled output"

@@ -35,7 +35,9 @@ gamescope and wine's own (very chatty) output is redirected to
 overwritten each time you launch. Worth a look if something misbehaves:
 
 ```sh
-tail -f games/<game_name>/logs/run.log
+make logs <game_name>              # print the main run log
+make logs <game_name> tool-wrye-bash   # print a specific tool's log
+FOLLOW=1 make logs <game_name>     # tail -f instead of printing once
 ```
 
 ## Usage
@@ -268,9 +270,9 @@ make kill <game_name>
 
 The automatic watcher only triggers once the game's own wine process has
 actually exited - if wine itself is wedged (some games deadlock internally,
-e.g. during intro-movie/cutscene playback - look for a thread stuck waiting
-in `games/<game_name>/logs/run.log` if this happens), there's nothing for it
-to notice, and `Ctrl+C`/`make kill` are what you need instead.
+e.g. during intro-movie/cutscene playback - check `make logs <game_name>`
+for a thread stuck waiting if this happens), there's nothing for it to
+notice, and `Ctrl+C`/`make kill` are what you need instead.
 
 ### Paths with spaces
 
