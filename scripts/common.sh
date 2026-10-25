@@ -41,6 +41,7 @@ declare -A DEP_DESC=(
   [jq]="read/write each game's config.json"
   [7z]="extract .iso installers (try installing p7zip)"
   [gamescope]="launch games in their own nested session"
+  [taskset]="pin a game to one CPU core (needed only if a game sets single_core)"
 )
 
 # check_deps <cmd> [<cmd> ...]
@@ -114,6 +115,61 @@ with open(src, "rb") as fin, open(dst, "wb") as fout:
             break
         for i in range(0, len(chunk) - RAW + 1, RAW):
             fout.write(chunk[i + hdr : i + hdr + 2048])
+PYEOF
+}
+
+# Some CD-checked games (old copy-protection, or installers that just
+# verify the right disc is in the drive before touching it) call
+# GetVolumeInformation and compare the result against the label burned
+# into the disc, e.g. failing with "Please insert the <label> volume" if
+# it doesn't match. A real mounted CD/ISO reports that label automatically,
+# but mount_cdrom's dosdevices symlink just points at a plain directory of
+# extracted files, which Wine can't read a filesystem label from - so
+# GetVolumeInformation returns an empty string and the check fails even
+# with the right disc "inserted".
+#
+# Wine's own fallback for exactly this situation (a drive it can't query a
+# real filesystem for) is a ".windows-label" file in the drive's root
+# (see dlls/mountmgr.sys/device.c: get_filesystem_label), so this reads the
+# label straight out of the ISO9660 Primary Volume Descriptor - logical
+# sector 16, 32 bytes at offset 40 of its 2048-byte payload - and prints it
+# trimmed. Handles both standard 2048-byte-sector images and raw
+# 2352-byte-sector ones (see convert_raw_cd_image above) by measuring the
+# gap between the first two "CD001" signatures instead of assuming one
+# sector size. Prints nothing (and returns non-zero) if the label can't be
+# determined, so the caller can just skip writing one.
+read_cd_volume_label() {
+  local src="$1"
+  python3 - "$src" <<'PYEOF'
+import sys
+
+src = sys.argv[1]
+with open(src, "rb") as f:
+    head = f.read(200000)
+
+first = head.find(b"CD001")
+if first < 0:
+    sys.exit(1)
+second = head.find(b"CD001", first + 1)
+if second < 0:
+    sys.exit(1)
+
+sector_size = second - first  # 2048 (standard) or 2352 (raw/XA)
+hdr = first - 16 * sector_size - 1  # payload offset within sector 16
+if hdr < 0 or hdr > 64:
+    sys.exit(1)
+
+with open(src, "rb") as f:
+    f.seek(16 * sector_size + hdr)
+    payload = f.read(2048)
+
+if payload[1:6] != b"CD001":
+    sys.exit(1)
+
+label = payload[40:72].decode("latin-1").rstrip()
+if not label:
+    sys.exit(1)
+print(label)
 PYEOF
 }
 
@@ -235,6 +291,16 @@ mount_cdrom() {
       echo "$stamp" >"$stamp_file"
     fi
     source_dir="$cache_dir"
+
+    # Only a .iso (not an already-extracted folder, which has no PVD to
+    # read a label from) can tell us the disc's real volume label - see
+    # read_cd_volume_label above for why this matters. Written every
+    # mount, not just on a fresh extraction, so it also backfills caches
+    # extracted before this existed.
+    local label
+    if label="$(read_cd_volume_label "$image")" && [ -n "$label" ]; then
+      printf '%s\n' "$label" >"$source_dir/.windows-label"
+    fi
   fi
 
   mkdir -p "$prefix/dosdevices"
@@ -492,6 +558,33 @@ launch_exe() {
   export WINEPREFIX="$prefix"
   cd "$(dirname "$exe")"
 
+  # Some old mixed 16/32-bit titles (mid/late-90s "educational" engines
+  # mixing Win16 components with Win32 - the Davidson/Blaster "Launch
+  # Anything"/DARC engine among them) hit a long-standing Wine scheduler
+  # race in its Win16 compatibility layer: two threads deadlock on the
+  # global "Win16Mutex", logged as repeating
+  # "RtlpWaitForCriticalSection ... Win16Mutex wait timed out ... retrying
+  # (60 sec)" and otherwise indistinguishable from the game just being
+  # hung forever (see e.g. https://bugs.winehq.org/show_bug.cgi?id=45707
+  # and https://bugs.winehq.org/show_bug.cgi?id=49837 - still open on
+  # current Wine for at least some titles). It's a genuine race, not a
+  # timing fluke: pinning wine to a single CPU core removes the
+  # concurrency that triggers it, at the cost of that one core also
+  # having to cover every thread the game spawns.
+  #
+  # Opt-in per game via config.json's "single_core" key (e.g.
+  # `make config <game_name> single_core 1`) rather than on by default,
+  # since it only helps this specific class of game and otherwise just
+  # throws away free parallelism for no benefit.
+  local -a wine_cmd_arr=(wine)
+  if [ "$(config_get "$game" single_core 0)" = "1" ]; then
+    if command -v taskset >/dev/null 2>&1; then
+      wine_cmd_arr=(taskset -c 0 wine)
+    else
+      log_warn "'single_core' is set for $(bold "$game") but 'taskset' isn't on PATH; launching without it."
+    fi
+  fi
+
   # $NO_GAMESCOPE wins if set; otherwise a per-game "no_gamescope" default
   # in config.json (for games that are simply incompatible with gamescope);
   # otherwise the caller's own default (0 for the recorded launch target,
@@ -501,14 +594,14 @@ launch_exe() {
   if [ "$no_gamescope" = "1" ]; then
     log_step "Launching $label $(dim "(gamescope disabled)"): $exe"
     log_info "Output logged to $(dim "$log_file")"
-    exec wine "$exe" >"$log_file" 2>&1
+    exec "${wine_cmd_arr[@]}" "$exe" >"$log_file" 2>&1
   fi
 
   if ! command -v gamescope >/dev/null 2>&1; then
     log_warn "'gamescope' not found on PATH; launching without it."
     log_step "Launching $label: $exe"
     log_info "Output logged to $(dim "$log_file")"
-    exec wine "$exe" >"$log_file" 2>&1
+    exec "${wine_cmd_arr[@]}" "$exe" >"$log_file" 2>&1
   fi
 
   log_step "Launching $label $(dim "in gamescope"): $exe"
@@ -520,7 +613,7 @@ launch_exe() {
   # session down instead of leaving a stuck gamescope holding the terminal.
   # Its (very chatty) output goes to the logfile rather than our own
   # stdout, same as the direct-wine paths above.
-  gamescope "${gamescope_args_arr[@]}" -- wine "$exe" >"$log_file" 2>&1 &
+  gamescope "${gamescope_args_arr[@]}" -- "${wine_cmd_arr[@]}" "$exe" >"$log_file" 2>&1 &
   local gs_pid=$!
 
   local -a watch_pids=()
