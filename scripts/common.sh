@@ -39,7 +39,7 @@ die() {
 declare -A DEP_DESC=(
   [wine]="run Windows executables inside the wine prefix"
   [jq]="read/write each game's config.json"
-  [7z]="extract .iso installers (try installing p7zip)"
+  [7z]="extract .iso/.zip installers (try installing p7zip)"
   [gamescope]="launch games in their own nested session"
   [taskset]="pin a game to one CPU core (needed only if a game sets single_core)"
 )
@@ -311,6 +311,28 @@ mount_cdrom() {
   log_step "Mounted CD image for $(bold "$game") at $(bold "${drive^^}:")"
 }
 
+# A handful of mid-90s titles (the Davidson/Math Blaster "DARC" engine among
+# them - mixed Win16/Win32, SmartHeap-based) hit a Wine bug where win32u's
+# debug assertion user_check_not_lock() (dlls/win32u/sysparams.c) fires and
+# aborts the process outright ("BUG: holding USER lock"), apparently only
+# reachable via some reentrant USER32 call path these old apps exercise when
+# Wine is reporting itself as a modern Windows version. Reporting an older
+# one (winecfg's "Windows Version" setting, stored as the "Version" string
+# under this registry key) avoids the call path entirely and lets the game
+# run normally. Configured per-game via config.json's "windows_version" key,
+# e.g. `make config <game_name> windows_version win95`
+# (see `wine reg add 'HKCU\Software\Wine' /v Version /d <value> /f`'s values -
+# win95, win98, win2k, winxp64, win7, win10, ... - for the full list).
+set_windows_version() {
+  local game="$1" prefix="$2"
+  local ver
+  ver="$(config_get "$game" windows_version)"
+  [ -z "$ver" ] && return 0
+
+  WINEPREFIX="$prefix" wine reg add 'HKCU\Software\Wine' /v Version /d "$ver" /f >/dev/null 2>&1
+  log_step "Set Windows version for $(bold "$game") to $(bold "$ver")"
+}
+
 # Force-kills every process tied to a game's wine prefix: gamescope, wine,
 # wineserver, and anything else wine spawned. Shared by `make kill` (manual
 # cleanup) and the stuck-gamescope watcher below (automatic cleanup).
@@ -514,6 +536,7 @@ launch_exe() {
   exec 2> >(grep -Ev '(Killed|Terminated)[[:space:]]{2,}[^[:space:]]' >&2)
 
   mount_cdrom "$game" "$prefix"
+  set_windows_version "$game" "$prefix"
 
   local log_dir log_file
   log_dir="$(game_dir "$game")/logs"

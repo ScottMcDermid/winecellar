@@ -7,8 +7,8 @@ isolated wine prefix.
 
 - `wine` on your `PATH`
 - `jq` on your `PATH` (used to read/write each game's `config.json`)
-- `7z` on your `PATH` (used by `make install` to extract `.iso` installers;
-  optional if you only ever install from `.exe`)
+- `7z` on your `PATH` (used by `make install` to extract `.iso`/`.zip`
+  installers; optional if you only ever install from `.exe`)
 - `gamescope` on your `PATH` (optional, but `make run` uses it by default to
   launch games in their own nested session)
 - GNU Make, bash
@@ -155,6 +155,28 @@ detects that case automatically and converts it before extracting - this
 step needs `python3` on your `PATH` (only when this fallback actually
 triggers; a standard `.iso` never needs it).
 
+### Installing from a `.zip`
+
+Same idea as `.iso`, for installers (or whole games) distributed as a
+`.zip` - common for repacks and some digital-only indie games:
+
+```sh
+make install harry-potter ~/Downloads/Harry-Potter-and-the-Sorcerer-s-Stone_Win_EN_Repack.zip
+```
+
+Passing a path ending in `.zip` extracts it to a temporary directory (via
+`7z`), looks for the installer inside (same `setup.exe`/`autorun.exe`/any
+`.exe` search as `.iso`, below), and runs that inside the prefix. Pick the
+one to run yourself if several plausible candidates turn up, same as
+`.iso`. The extracted copy is deleted once `install` finishes; only what the
+installer wrote into `games/<game_name>/prefix/` sticks around. Requires
+`7z` (p7zip) on your `PATH`.
+
+If the zip has no installer at all - just the game's files dropped straight
+in - `install` still finds the most plausible `.exe` inside via the same
+fallback search and runs that directly, same as a portable, no-installer
+`.exe` passed in normally.
+
 ### Mod managers & other auxiliary tools (`make tool`)
 
 Some tools need to run *inside* the same wine prefix as the game - a mod
@@ -209,6 +231,11 @@ Supported keys today:
 | ---------------- | ---------------- | ----------------------------------------------- |
 | `launch`         | `make install`   | absolute path of the exe `make run` launches    |
 | `gamescope_args` | `make config`    | default gamescope flags for this game           |
+| `no_gamescope`   | `make config`    | skip gamescope for this game even by default    |
+| `single_core`    | `make config`    | pin wine to one CPU core (old mixed 16/32-bit titles that deadlock otherwise) |
+| `windows_version`| `make config`    | reported Windows version (`win95`, `win98`, ...) - works around old titles that crash Wine on the modern default |
+| `cd_image`       | `make config`    | path to a `.iso`/disc folder to mount for CD-checked games |
+| `cd_drive`       | `make config`    | drive letter to mount `cd_image` as (default `d`) |
 | `tool_<name>`    | `make tool`      | absolute path of the auxiliary exe named `<name>` |
 
 More options can be added the same way as the framework grows; `config.sh`
