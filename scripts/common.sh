@@ -507,6 +507,34 @@ watch_hung_wine_log() {
   force_kill_game "$game"
 }
 
+# Scans a script's own positional arguments for --gamescope/--no-gamescope,
+# letting `run`/`tool` accept them as a plain trailing flag (e.g.
+# `scripts/run.sh <game_name> --no-gamescope`) in addition to the
+# pre-existing $NO_GAMESCOPE env var / per-game "no_gamescope" config
+# default that launch_exe below already reads. When present, sets
+# NO_GAMESCOPE to match - taking precedence over any inherited environment
+# value, since an explicit flag on this particular invocation is the most
+# specific override there is - and echoes the remaining args back out, one
+# per line, for the caller to reassign via `mapfile`. Works regardless of
+# where among the args the flag appears.
+#
+# Note: invoking through `make` needs a literal `--` before the flag (e.g.
+# `make run <game_name> -- --no-gamescope`), since GNU make itself tries to
+# parse a bare `--no-gamescope` on its own command line as one of its own
+# options.
+extract_gamescope_flag() {
+  local -a rest=()
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      --gamescope) NO_GAMESCOPE=0 ;;
+      --no-gamescope) NO_GAMESCOPE=1 ;;
+      *) rest+=("$arg") ;;
+    esac
+  done
+  printf '%s\n' "${rest[@]}"
+}
+
 # Launches an executable inside a game's wine prefix, wrapping it in
 # gamescope unless disabled. Shared by `run` (the recorded game/exe
 # override) and `tool` (auxiliary exes like mod managers), which only
@@ -608,10 +636,11 @@ launch_exe() {
     fi
   fi
 
-  # $NO_GAMESCOPE wins if set; otherwise a per-game "no_gamescope" default
-  # in config.json (for games that are simply incompatible with gamescope);
-  # otherwise the caller's own default (0 for the recorded launch target,
-  # 1 for a one-off exe override/tool).
+  # --gamescope/--no-gamescope (see extract_gamescope_flag above) wins if
+  # the caller passed one; otherwise $NO_GAMESCOPE wins if set; otherwise a
+  # per-game "no_gamescope" default in config.json (for games that are
+  # simply incompatible with gamescope); otherwise the caller's own default
+  # (0 for the recorded launch target, 1 for a one-off exe override/tool).
   local no_gamescope
   no_gamescope="${NO_GAMESCOPE:-$(config_get "$game" no_gamescope "$default_no_gamescope")}"
   if [ "$no_gamescope" = "1" ]; then
